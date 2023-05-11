@@ -18,7 +18,9 @@ contract NumberRunnerClub is ERC721URIStorage {
     struct PieceDetails {
         uint256 maxSupply;
         uint256 currentSupply;
+        uint256 totalMinted;
         uint256 percentage;
+        uint256 burnTax;
     }
 
     Piece[] public collection;
@@ -31,13 +33,15 @@ contract NumberRunnerClub is ERC721URIStorage {
 
     mapping(Piece => PieceDetails) public pieceDetails;
 
+    mapping(address => uint256) private holderBalance;
+
     constructor() ERC721("NumberRunnerClub", "NRC") {
-        pieceDetails[Piece.King] = PieceDetails(2, 0, 350);
-        pieceDetails[Piece.Queen] = PieceDetails(10, 0, 225);
-        pieceDetails[Piece.Rook] = PieceDetails(50, 0, 150);
-        pieceDetails[Piece.Knight] = PieceDetails(100, 0, 125);
-        pieceDetails[Piece.Bishop] = PieceDetails(200, 0, 100);
-        pieceDetails[Piece.Pawn] = PieceDetails(9638, 0, 650);
+        pieceDetails[Piece.King] = PieceDetails(2, 0, 0, 350, 0);
+        pieceDetails[Piece.Queen] = PieceDetails(10, 0, 0, 225, 35);
+        pieceDetails[Piece.Rook] = PieceDetails(50, 0, 0, 150, 35);
+        pieceDetails[Piece.Knight] = PieceDetails(100, 0, 0, 125, 30);
+        pieceDetails[Piece.Bishop] = PieceDetails(200, 0, 0, 100, 25);
+        pieceDetails[Piece.Pawn] = PieceDetails(9638, 0, 0, 650, 25);
     }
 
     function mint(Piece _piece, string memory tokenURI)
@@ -56,23 +60,40 @@ contract NumberRunnerClub is ERC721URIStorage {
         _mint(msg.sender, newItemId);
         _setTokenURI(newItemId, tokenURI);
         pieceDetails[_piece].currentSupply++;
+        pieceDetails[_piece].totalMinted++;
 
         if (pieceDetails[_piece].currentSupply == 1) {
             // If it's the first piece of this type
-            if(_piece != Piece.Pawn && _piece != Piece.King){
-                pieceDetails[Piece.Pawn].percentage -= pieceDetails[_piece].percentage;
+            if (_piece != Piece.Pawn && _piece != Piece.King) {
+                pieceDetails[Piece.Pawn].percentage -= pieceDetails[_piece]
+                    .percentage;
             }
         }
 
         // Add the transaction fee to the piece's balance
         for (uint8 i = 0; i < 6; i++) {
             PieceDetails memory piece = pieceDetails[Piece(i)];
-            if(piece.currentSupply > 0) {
+            if (piece.currentSupply > 0) {
                 uint256 pieceShare = (100000000000000 * piece.percentage);
                 pieceBalance[Piece(i)] += pieceShare;
             }
         }
         _tokenIds.increment();
         return newItemId;
+    }
+
+    function burnNFT(uint256 tokenId) public {
+        require(
+            _isApprovedOrOwner(_msgSender(), tokenId),
+            "ERC721: burn caller is not owner nor approved"
+        );
+        Piece piece = collection[tokenId];
+        require(piece != Piece.King, "Cannot burn the King");
+        uint256 taxAmount = (holderBalance[_msgSender()] *
+            pieceDetails[piece].burnTax) / 100;
+        holderBalance[_msgSender()] -= taxAmount;
+        pieceBalance[piece] += taxAmount;
+        _burn(tokenId);
+        pieceDetails[piece].currentSupply--;
     }
 }
