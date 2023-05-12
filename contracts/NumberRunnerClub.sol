@@ -44,7 +44,10 @@ contract NumberRunnerClub is ERC721URIStorage {
 
     mapping(address => uint256) private holderBalance;
 
-    constructor(address _ens, address _resolver) ERC721("NumberRunnerClub", "NRC") {
+    constructor(
+        address _ens,
+        address _resolver
+    ) ERC721("NumberRunnerClub", "NRC") {
         pieceDetails[Piece.King] = PieceDetails(2, 0, 0, 350, 0);
         pieceDetails[Piece.Queen] = PieceDetails(10, 0, 0, 225, 35);
         pieceDetails[Piece.Rook] = PieceDetails(50, 0, 0, 150, 35);
@@ -106,7 +109,7 @@ contract NumberRunnerClub is ERC721URIStorage {
                 pieceBalance[Piece(i)] += pieceShare;
             }
         }
-        transferFrom(_msgSender(), buyer, tokenId);
+        safeTransferFrom(_msgSender(), buyer, tokenId);
     }
 
     function burnNFT(uint256 tokenId) public {
@@ -130,24 +133,38 @@ contract NumberRunnerClub is ERC721URIStorage {
         pieceDetails[piece].currentSupply--;
     }
 
-    function stake(bytes32 node, address nftContract, uint256 tokenId) external {
+    function stake(
+        bytes32 node,
+        address nftContract,
+        uint256 tokenId
+    ) external {
         // Ensure the function caller owns the ENS node
         require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 
         // Ensure the function caller owns the NFT
-        require(IERC721(nftContract).ownerOf(tokenId) == msg.sender, "Not owner of NFT");
+        require(
+            IERC721(nftContract).ownerOf(tokenId) == msg.sender,
+            "Not owner of NFT"
+        );
 
         // Ensure the NFT is approved for this contract to manage
-        require(IERC721(nftContract).getApproved(tokenId) == address(this), "NFT not approved for staking");
+        require(
+            IERC721(nftContract).getApproved(tokenId) == address(this),
+            "NFT not approved for staking"
+        );
 
         // Transfer the NFT to this contract
-        IERC721(nftContract).transferFrom(msg.sender, address(this), tokenId);
+        IERC721(nftContract).safeTransferFrom(msg.sender, address(this), tokenId);
 
         // Set the token ID for the ENS node
         tokenIdOfNode[node] = tokenId;
 
         // Set the NFT as the avatar for the ENS node
-        textResolver.setText(node, "avatar", string(abi.encodePacked("eip721:", nftContract, "/", tokenId)));
+        textResolver.setText(
+            node,
+            "avatar",
+            string(abi.encodePacked("eip721:", nftContract, "/", tokenId))
+        );
     }
 
     function unstake(bytes32 node, address nftContract) external {
@@ -155,10 +172,17 @@ contract NumberRunnerClub is ERC721URIStorage {
         require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 
         // Ensure the NFT is managed by this contract
-        require(IERC721(nftContract).ownerOf(tokenIdOfNode[node]) == address(this), "NFT not staked");
+        require(
+            IERC721(nftContract).ownerOf(tokenIdOfNode[node]) == address(this),
+            "NFT not staked"
+        );
 
         // Transfer the NFT back to the function caller
-        IERC721(nftContract).transferFrom(address(this), msg.sender, tokenIdOfNode[node]);
+        IERC721(nftContract).safeTransferFrom(
+            address(this),
+            msg.sender,
+            tokenIdOfNode[node]
+        );
 
         // Remove the token ID for the ENS node
         delete tokenIdOfNode[node];
