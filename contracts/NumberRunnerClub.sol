@@ -20,7 +20,6 @@ contract NumberRunnerClub is ERC721URIStorage {
 
     struct PieceDetails {
         uint256 maxSupply;
-        uint256 currentSupply;
         uint256 totalMinted;
         uint256 percentage;
         uint256 burnTax;
@@ -37,23 +36,23 @@ contract NumberRunnerClub is ERC721URIStorage {
     // Mapping from ENS node to token ID
     mapping(bytes32 => uint256) public tokenIdOfNode;
 
-    // Mapping to store the balance of each Piece type
-    mapping(Piece => uint256) public pieceBalance;
-
     mapping(Piece => PieceDetails) public pieceDetails;
 
-    mapping(address => uint256) private holderBalance;
+    mapping(uint256 => uint256) private holderBalance;
+
+    mapping(Piece => uint256[]) private idStacked;
+    mapping(Piece => mapping(uint256 => uint256)) private idToIndex;
 
     constructor(
         address _ens,
         address _resolver
     ) ERC721("NumberRunnerClub", "NRC") {
-        pieceDetails[Piece.King] = PieceDetails(2, 0, 0, 350, 0);
-        pieceDetails[Piece.Queen] = PieceDetails(10, 0, 0, 225, 35);
-        pieceDetails[Piece.Rook] = PieceDetails(50, 0, 0, 150, 35);
-        pieceDetails[Piece.Knight] = PieceDetails(100, 0, 0, 125, 30);
-        pieceDetails[Piece.Bishop] = PieceDetails(200, 0, 0, 100, 25);
-        pieceDetails[Piece.Pawn] = PieceDetails(9638, 0, 0, 650, 25);
+        pieceDetails[Piece.King] = PieceDetails(2, 0, 350, 0);
+        pieceDetails[Piece.Queen] = PieceDetails(10, 0, 225, 35);
+        pieceDetails[Piece.Rook] = PieceDetails(50, 0, 150, 35);
+        pieceDetails[Piece.Knight] = PieceDetails(100, 0, 125, 30);
+        pieceDetails[Piece.Bishop] = PieceDetails(200, 0, 100, 25);
+        pieceDetails[Piece.Pawn] = PieceDetails(9638, 0, 650, 25);
         ens = ENS(_ens);
         textResolver = TextResolver(_resolver);
     }
@@ -66,29 +65,20 @@ contract NumberRunnerClub is ERC721URIStorage {
         uint256 newItemId = _tokenIds.current();
         require(newItemId < MAX_NFT_SUPPLY, "Maximum NFTs reached.");
         require(
-            pieceDetails[_piece].currentSupply < pieceDetails[_piece].maxSupply,
+            pieceDetails[_piece].totalMinted < pieceDetails[_piece].maxSupply,
             "Max supply for this piece type reached"
         );
         collection.push(_piece);
         _mint(msg.sender, newItemId);
         _setTokenURI(newItemId, tokenURI);
-        pieceDetails[_piece].currentSupply++;
         pieceDetails[_piece].totalMinted++;
-
-        if (pieceDetails[_piece].currentSupply == 1) {
-            // If it's the first piece of this type
-            if (_piece != Piece.Pawn && _piece != Piece.King) {
-                pieceDetails[Piece.Pawn].percentage -= pieceDetails[_piece]
-                    .percentage;
-            }
-        }
 
         // Add the transaction fee to the piece's balance
         for (uint8 i = 0; i < 6; i++) {
             PieceDetails memory piece = pieceDetails[Piece(i)];
-            if (piece.currentSupply > 0) {
+            if (idStacked[Piece(i)].length > 0) {
                 uint256 pieceShare = (100000000000000 * piece.percentage);
-                pieceBalance[Piece(i)] += pieceShare;
+                distributePieceShare(Piece(i), pieceShare);
             }
         }
         _tokenIds.increment();
@@ -100,14 +90,14 @@ contract NumberRunnerClub is ERC721URIStorage {
             _isApprovedOrOwner(_msgSender(), tokenId),
             "ERC721: transfer caller is not owner nor approved"
         );
-        uint256 taxAmount = (holderBalance[_msgSender()] * 16) / 100;
-        holderBalance[_msgSender()] -= taxAmount;
+        // uint256 taxAmount = (holderBalance[_msgSender()] * 16) / 100;
+        // holderBalance[_msgSender()] -= taxAmount;
         for (uint8 i = 0; i < 6; i++) {
-            PieceDetails memory pieceType = pieceDetails[Piece(i)];
-            if (pieceType.currentSupply > 0) {
-                uint256 pieceShare = (taxAmount * pieceType.percentage);
-                pieceBalance[Piece(i)] += pieceShare;
-            }
+            // PieceDetails memory pieceType = pieceDetails[Piece(i)];
+            // if (pieceType.currentSupply > 0) {
+            //     uint256 pieceShare = (taxAmount * pieceType.percentage);
+            //     pieceBalance[Piece(i)] += pieceShare;
+            // }
         }
         safeTransferFrom(_msgSender(), buyer, tokenId);
     }
@@ -119,25 +109,24 @@ contract NumberRunnerClub is ERC721URIStorage {
         );
         Piece piece = collection[tokenId];
         require(piece != Piece.King, "Cannot burn the King");
-        uint256 taxAmount = (holderBalance[_msgSender()] *
+        uint256 taxAmount = (holderBalance[tokenId] *
             pieceDetails[piece].burnTax) / 100;
-        holderBalance[_msgSender()] -= taxAmount;
+        holderBalance[tokenId] -= taxAmount;
         for (uint8 i = 0; i < 6; i++) {
             PieceDetails memory pieceType = pieceDetails[Piece(i)];
-            if (pieceType.currentSupply > 0) {
+            if (idStacked[Piece(i)].length > 0) {
                 uint256 pieceShare = (taxAmount * pieceType.percentage);
-                pieceBalance[Piece(i)] += pieceShare;
+                distributePieceShare(Piece(i), pieceShare);
             }
         }
         _burn(tokenId);
-        pieceDetails[piece].currentSupply--;
     }
 
-    function stake(
+    function _stake(
         bytes32 node,
         address nftContract,
         uint256 tokenId
-    ) external {
+    ) private {
         // Ensure the function caller owns the ENS node
         require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 
@@ -152,9 +141,24 @@ contract NumberRunnerClub is ERC721URIStorage {
             IERC721(nftContract).getApproved(tokenId) == address(this),
             "NFT not approved for staking"
         );
+        Piece pieceType = getPieceType(tokenId);
+        idToIndex[pieceType][tokenId] = idStacked[pieceType].length;
+        idStacked[pieceType].push(tokenId);
+
+        if (idStacked[pieceType].length == 1) {
+            // If it's the first piece of this type
+            if (pieceType != Piece.Pawn && pieceType != Piece.King) {
+                pieceDetails[Piece.Pawn].percentage -= pieceDetails[pieceType]
+                    .percentage;
+            }
+        }
 
         // Transfer the NFT to this contract
-        IERC721(nftContract).safeTransferFrom(msg.sender, address(this), tokenId);
+        IERC721(nftContract).safeTransferFrom(
+            msg.sender,
+            address(this),
+            tokenId
+        );
 
         // Set the token ID for the ENS node
         tokenIdOfNode[node] = tokenId;
@@ -167,7 +171,11 @@ contract NumberRunnerClub is ERC721URIStorage {
         );
     }
 
-    function unstake(bytes32 node, address nftContract) external {
+    function _unstake(
+        bytes32 node,
+        address nftContract,
+        uint256 tokenId
+    ) private {
         // Ensure the function caller owns the ENS node
         require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 
@@ -176,6 +184,15 @@ contract NumberRunnerClub is ERC721URIStorage {
             IERC721(nftContract).ownerOf(tokenIdOfNode[node]) == address(this),
             "NFT not staked"
         );
+
+        Piece pieceType = getPieceType(tokenId);
+        uint256 index = idToIndex[pieceType][tokenId];
+        uint256 lastId = idStacked[pieceType][idStacked[pieceType].length - 1];
+
+        idStacked[pieceType][index] = lastId;
+        idStacked[pieceType].pop();
+        idToIndex[pieceType][lastId] = index;
+        delete idToIndex[pieceType][tokenId];
 
         // Transfer the NFT back to the function caller
         IERC721(nftContract).safeTransferFrom(
@@ -189,5 +206,101 @@ contract NumberRunnerClub is ERC721URIStorage {
 
         // Remove the NFT as the avatar for the ENS node
         textResolver.setText(node, "avatar", "");
+    }
+
+    function stakePawn(
+        bytes32 node,
+        address nftContract,
+        uint256 tokenId
+    ) external {
+        require(is999Club(node) || is10kClub(node) || is100kClub(node));
+        _stake(node, nftContract, tokenId);
+    }
+
+    function is999Club(bytes32 name) public pure returns (bool) {
+        bytes32 b = name;
+        if (b.length != 7) return false; // Length should be 7 to fit "123.eth"
+
+        // Check if the first part is a number
+        for (uint i = 0; i < 3; i++) {
+            if (b[i] < 0x30 || b[i] > 0x39) return false; // ASCII values for '0' and '9'
+        }
+
+        // Check if the last part is ".eth"
+        if (
+            b[3] != 0x2e || // ASCII value for '.'
+            b[4] != 0x65 || // ASCII value for 'e'
+            b[5] != 0x74 || // ASCII value for 't'
+            b[6] != 0x68 // ASCII value for 'h'
+        ) return false;
+
+        return true;
+    }
+
+    function is10kClub(bytes32 name) public pure returns (bool) {
+        bytes32 b = name;
+        if (b.length != 8) return false; // Length should be 7 to fit "123.eth"
+
+        // Check if the first part is a number
+        for (uint i = 0; i < 4; i++) {
+            if (b[i] < 0x30 || b[i] > 0x39) return false; // ASCII values for '0' and '9'
+        }
+
+        // Check if the last part is ".eth"
+        if (
+            b[4] != 0x2e || // ASCII value for '.'
+            b[5] != 0x65 || // ASCII value for 'e'
+            b[6] != 0x74 || // ASCII value for 't'
+            b[7] != 0x68 // ASCII value for 'h'
+        ) return false;
+
+        return true;
+    }
+
+    function is100kClub(bytes32 name) public pure returns (bool) {
+        bytes32 b = name;
+        if (b.length != 9) return false; // Length should be 7 to fit "123.eth"
+
+        // Check if the first part is a number
+        for (uint i = 0; i < 5; i++) {
+            if (b[i] < 0x30 || b[i] > 0x39) return false; // ASCII values for '0' and '9'
+        }
+
+        // Check if the last part is ".eth"
+        if (
+            b[5] != 0x2e || // ASCII value for '.'
+            b[6] != 0x65 || // ASCII value for 'e'
+            b[7] != 0x74 || // ASCII value for 't'
+            b[8] != 0x68 // ASCII value for 'h'
+        ) return false;
+
+        return true;
+    }
+
+    function getPieceType(uint256 nftId) private pure returns (Piece) {
+        require(nftId < MAX_NFT_SUPPLY, "NFT ID out of range");
+        if (nftId >= 0 && nftId < 2) {
+            return Piece.King;
+        } else if (nftId >= 2 && nftId < 12) {
+            return Piece.Queen;
+        } else if (nftId >= 12 && nftId < 62) {
+            return Piece.Rook;
+        } else if (nftId >= 62 && nftId < 162) {
+            return Piece.Knight;
+        } else if (nftId >= 162 && nftId < 362) {
+            return Piece.Bishop;
+        } else {
+            return Piece.Pawn; // sécurté ?
+        }
+    }
+
+    function distributePieceShare(Piece pieceType, uint256 pieceShare) private {
+        uint256[] storage stackedIds = idStacked[pieceType];
+        uint256 numStacked = stackedIds.length;
+
+        for (uint256 i = 0; i < numStacked; i++) {
+            uint256 tokenId = stackedIds[i];
+            holderBalance[tokenId] += pieceShare / numStacked;
+        }
     }
 }
