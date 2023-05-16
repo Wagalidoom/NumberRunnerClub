@@ -10,12 +10,18 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 contract NumberRunnerClub is ERC721URIStorage {
     using Counters for Counters.Counter;
     enum Piece {
-        King,
-        Queen,
-        Rook,
-        Knight,
-        Bishop,
-        Pawn
+        BlackKing,
+        WhiteKing,
+        BlackQueen,
+        WhiteQueen,
+        BlackRook,
+        WhiteRook,
+        BlackKnight,
+        WhiteKnight,
+        BlackBishop,
+        WhiteBishop,
+        BlackPawn,
+        WhitePawn
     }
 
     struct PieceDetails {
@@ -29,6 +35,8 @@ contract NumberRunnerClub is ERC721URIStorage {
     uint256 public constant MAX_NFT_SUPPLY = 10000;
 
     Counters.Counter private _tokenIds;
+    Counters.Counter private _blackTokenIds;
+    Counters.Counter private _whiteTokenIds;
 
     ENS ens;
     TextResolver textResolver;
@@ -43,16 +51,25 @@ contract NumberRunnerClub is ERC721URIStorage {
     mapping(Piece => uint256[]) private idStacked;
     mapping(Piece => mapping(uint256 => uint256)) private idToIndex;
 
+    // Mapping of user address to chosen color
+    mapping(address => uint256) public userColor;
+
     constructor(
         address _ens,
         address _resolver
     ) ERC721("NumberRunnerClub", "NRC") {
-        pieceDetails[Piece.King] = PieceDetails(2, 0, 350, 0);
-        pieceDetails[Piece.Queen] = PieceDetails(10, 0, 225, 35);
-        pieceDetails[Piece.Rook] = PieceDetails(50, 0, 150, 35);
-        pieceDetails[Piece.Knight] = PieceDetails(100, 0, 125, 30);
-        pieceDetails[Piece.Bishop] = PieceDetails(200, 0, 100, 25);
-        pieceDetails[Piece.Pawn] = PieceDetails(9638, 0, 650, 25);
+        pieceDetails[Piece.BlackKing] = PieceDetails(1, 0, 350, 0);
+        pieceDetails[Piece.WhiteKing] = PieceDetails(1, 0, 350, 0);
+        pieceDetails[Piece.BlackQueen] = PieceDetails(5, 0, 225, 35);
+        pieceDetails[Piece.WhiteQueen] = PieceDetails(5, 0, 225, 35);
+        pieceDetails[Piece.BlackRook] = PieceDetails(25, 0, 150, 35);
+        pieceDetails[Piece.WhiteRook] = PieceDetails(25, 0, 150, 35);
+        pieceDetails[Piece.BlackKnight] = PieceDetails(50, 0, 125, 30);
+        pieceDetails[Piece.WhiteKnight] = PieceDetails(50, 0, 125, 30);
+        pieceDetails[Piece.BlackBishop] = PieceDetails(100, 0, 100, 25);
+        pieceDetails[Piece.WhiteBishop] = PieceDetails(100, 0, 100, 25);
+        pieceDetails[Piece.BlackPawn] = PieceDetails(4819, 0, 650, 25);
+        pieceDetails[Piece.WhitePawn] = PieceDetails(4819, 0, 650, 25);
         ens = ENS(_ens);
         textResolver = TextResolver(_resolver);
     }
@@ -84,6 +101,18 @@ contract NumberRunnerClub is ERC721URIStorage {
         _tokenIds.increment();
         return newItemId;
     }
+    
+    function mintBlack(
+        Piece _piece,
+        string memory tokenURI
+    ) public payable returns (uint256) {
+        require(msg.value > 200000000000000000);
+        require(userColor[msg.sender] == 1, "Can't mint piece of different color");
+        require(
+            pieceDetails[_piece].totalMinted < pieceDetails[_piece].maxSupply,
+            "Max supply for this piece type reached"
+        );
+    }
 
     function sellNFT(uint256 tokenId, address buyer) public {
         require(
@@ -108,7 +137,10 @@ contract NumberRunnerClub is ERC721URIStorage {
             "ERC721: burn caller is not owner nor approved"
         );
         Piece piece = collection[tokenId];
-        require(piece != Piece.King, "Cannot burn the King");
+        require(
+            piece != Piece.BlackKing && piece != Piece.WhiteKing,
+            "Cannot burn the King"
+        );
         uint256 taxAmount = (holderBalance[tokenId] *
             pieceDetails[piece].burnTax) / 100;
         holderBalance[tokenId] -= taxAmount;
@@ -147,9 +179,18 @@ contract NumberRunnerClub is ERC721URIStorage {
 
         if (idStacked[pieceType].length == 1) {
             // If it's the first piece of this type
-            if (pieceType != Piece.Pawn && pieceType != Piece.King) {
-                pieceDetails[Piece.Pawn].percentage -= pieceDetails[pieceType]
-                    .percentage;
+            if (
+                pieceType != Piece.BlackPawn &&
+                pieceType != Piece.WhitePawn &&
+                pieceType != Piece.BlackKing &&
+                pieceType != Piece.WhiteKing
+            ) {
+                pieceDetails[Piece.BlackPawn].percentage -= pieceDetails[
+                    pieceType
+                ].percentage;
+                pieceDetails[Piece.WhitePawn].percentage -= pieceDetails[
+                    pieceType
+                ].percentage;
             }
         }
 
@@ -280,21 +321,45 @@ contract NumberRunnerClub is ERC721URIStorage {
     function getPieceType(uint256 nftId) private pure returns (Piece) {
         require(nftId < MAX_NFT_SUPPLY, "NFT ID out of range");
         if (nftId >= 0 && nftId < 2) {
-            return Piece.King;
+            if (nftId % 2 == 0) {
+                return Piece.BlackKing;
+            } else {
+                return Piece.WhiteKing;
+            }
         } else if (nftId >= 2 && nftId < 12) {
-            return Piece.Queen;
+            if (nftId % 2 == 0) {
+                return Piece.BlackQueen;
+            } else {
+                return Piece.WhiteQueen;
+            }
         } else if (nftId >= 12 && nftId < 62) {
-            return Piece.Rook;
+            if (nftId % 2 == 0) {
+                return Piece.BlackRook;
+            } else {
+                return Piece.WhiteRook;
+            }
         } else if (nftId >= 62 && nftId < 162) {
-            return Piece.Knight;
+            if (nftId % 2 == 0) {
+                return Piece.BlackKnight;
+            } else {
+                return Piece.WhiteKnight;
+            }
         } else if (nftId >= 162 && nftId < 362) {
-            return Piece.Bishop;
+            if (nftId % 2 == 0) {
+                return Piece.BlackBishop;
+            } else {
+                return Piece.WhiteBishop;
+            }
         } else {
-            return Piece.Pawn; // sécurté ?
+            if (nftId % 2 == 0) {
+                return Piece.BlackPawn;
+            } else {
+                return Piece.WhitePawn;
+            }
         }
     }
 
-    function distributePieceShare(Piece pieceType, uint256 pieceShare) private {
+    function distributePieceShare(Piece pieceType, uint256 pieceShare) private { // regler le pb de distribution pour n'importe quelle couleur
         uint256[] storage stackedIds = idStacked[pieceType];
         uint256 numStacked = stackedIds.length;
 
@@ -302,5 +367,11 @@ contract NumberRunnerClub is ERC721URIStorage {
             uint256 tokenId = stackedIds[i];
             holderBalance[tokenId] += pieceShare / numStacked;
         }
+    }
+
+    function chooseColor(uint256 _color) external {
+        require(_color == 1 || _color == 2, "Invalid color");
+        require(userColor[msg.sender] == 0, "Color already chosen");
+        userColor[msg.sender] = _color;
     }
 }
