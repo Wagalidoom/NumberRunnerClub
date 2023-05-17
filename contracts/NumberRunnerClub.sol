@@ -75,9 +75,20 @@ contract NumberRunnerClub is ERC721URIStorage {
 
 		// Mint the NFT based on its type
 		if (_piece == Piece.Bishop) {
-			require(has100kClubStacked(msg.sender));
+			require(has999ClubStacked(msg.sender) || has10kClubStacked(msg.sender) || has100kClubStacked(msg.sender));
 			require(burnedCount[msg.sender] > 10);
-		} else if (_piece == Piece.Bishop) {} // Add other types here
+		} else if (_piece == Piece.Knight) {
+			require(has999ClubStacked(msg.sender) || has10kClubStacked(msg.sender));
+			require(burnedCounterCount[msg.sender] > 10);
+		} else if (_piece == Piece.Rook) {
+			require(has999ClubStacked(msg.sender) || has10kClubStacked(msg.sender));
+			require(burnedCounterCount[msg.sender] > 15);
+		} else if (_piece == Piece.Queen) {
+			require(has999ClubStacked(msg.sender));
+			require(burnedCounterCount[msg.sender] > 15);
+		} else if (_piece == Piece.King) {
+			revert("Cannot mint the king");
+		}
 
 		collection.push(_piece);
 		_mint(msg.sender, newItemId);
@@ -354,6 +365,26 @@ contract NumberRunnerClub is ERC721URIStorage {
 			}
 		}
 		revert("NFT not found");
+	}
+
+	function has999ClubStacked(address user) private view returns (bool) {
+		for (uint256 i = 0; i < userStackedNFTs[user].length; i++) {
+			uint256 tokenId = userStackedNFTs[user][i];
+			if (is999Club(nodeOfTokenId[tokenId])) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	function has10kClubStacked(address user) private view returns (bool) {
+		for (uint256 i = 0; i < userStackedNFTs[user].length; i++) {
+			uint256 tokenId = userStackedNFTs[user][i];
+			if (is10kClub(nodeOfTokenId[tokenId])) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	function has100kClubStacked(address user) private view returns (bool) {
