@@ -16,8 +16,6 @@ contract NumberRunnerClub is ERC721URIStorage {
 		Pawn
 	}
 
-	// Intégrer toutes les conditions de stack/mint dans PieceDetails pour avoir une seule fonction de mint et une seule de stack
-
 	struct PieceDetails {
 		uint256 maxSupply;
 		uint256 totalMinted;
@@ -37,24 +35,16 @@ contract NumberRunnerClub is ERC721URIStorage {
 
 	ENS ens;
 	TextResolver textResolver;
-
-	// Mapping from ENS node to token ID
-	mapping(uint256 => bytes32) public nodeOfTokenId;
-
-	mapping(Piece => PieceDetails) public pieceDetails;
-
-	mapping(uint256 => uint256) private holderBalance;
-
-	mapping(Piece => uint256[]) private idStacked;
+	mapping(uint256 => bytes32) public nodeOfTokenId; // Mapping of tokenId to the corresponding ENS name
+	mapping(Piece => PieceDetails) public pieceDetails; // Mapping of Chess Piece to the corresponding Details
+	mapping(uint256 => uint256) private tokenBalance; // Mapping of tokenId to the matching balance
+	mapping(Piece => uint256[]) private idStacked; // Mapping of Piece to the tokenIds of this piece type stacked in contract
 	mapping(Piece => mapping(uint256 => uint256)) private idToIndex;
-
-	// Mapping of user address to chosen color
-	mapping(address => uint256) public userColor;
-
-	mapping(address => uint256) private burnedCount;
-	mapping(address => uint256) private burnedCounterCount;
-	mapping(address => uint256[]) public userStackedNFTs;
-	mapping(uint256 => bool) public isStaked;
+	mapping(address => uint256) public userColor; // Mapping of user address to chosen color
+	mapping(address => uint256) private burnedCount; // Mapping of user address to counter of nft burned
+	mapping(address => uint256) private burnedCounterCount; // Mapping of user address to counter of nft from the opponent color burned
+	mapping(address => uint256[]) public userStackedNFTs; // Mapping of user address to his nft stacked in the contract
+	mapping(uint256 => bool) public isStaked; // Mapping of nft stacked in the contract
 
 	constructor(address _ens, address _resolver) ERC721("NumberRunnerClub", "NRC") {
 		pieceDetails[Piece.King] = PieceDetails(2, 0, 0, 0, 350, 0, 0, 8, 0, 0, true);
@@ -67,33 +57,42 @@ contract NumberRunnerClub is ERC721URIStorage {
 		textResolver = TextResolver(_resolver);
 	}
 
-	function mint(Piece _piece, string memory tokenURI, uint256 color) public payable returns (uint256) {
-		require(msg.value > 200000000000000000);
-		require(color == 1 || color == 2, "Color must be Black or White");
-		require(userColor[msg.sender] == color, "Can't mint piece of different color");
+	function mint(Piece _piece, string memory tokenURI) public payable returns (uint256) {
+		require(msg.value > 200000000000000000); // minting price fixed at 0.2 eth
+		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
 		require(pieceDetails[_piece].totalMinted < pieceDetails[_piece].maxSupply, "Max supply for this piece type reached");
-		require(pieceDetails[_piece].blackMinted < pieceDetails[_piece].maxSupply / 2, "Max supply for this color reached");
-		require(pieceDetails[_piece].whiteMinted < pieceDetails[_piece].maxSupply / 2, "Max supply for this color reached");
 		require(_piece != Piece.King, "Cannot mint the king");
+		if (userColor[msg.sender] == 1) {
+			require(pieceDetails[_piece].blackMinted < pieceDetails[_piece].maxSupply / 2, "Max supply for black color reached");
+		} else {
+			require(pieceDetails[_piece].whiteMinted < pieceDetails[_piece].maxSupply / 2, "Max supply for white color reached");
+		}
 
-		// enlever startingId de pieceDetails et fixer la valeur de départ dans les fonctions mintPawn, mintBishop, etc
-		uint256 newItemId = color == 1 ? pieceDetails[_piece].startingId + 2 * pieceDetails[_piece].blackMinted : pieceDetails[_piece].startingId + 1 + 2 * pieceDetails[_piece].blackMinted;
+		// Set the id of the minting token from the type and color of the piece chosen
+		// Black token have even id
+		// White token have odd id
+		uint256 newItemId = userColor[msg.sender] == 1 ? pieceDetails[_piece].startingId + 2 * pieceDetails[_piece].blackMinted : pieceDetails[_piece].startingId + 1 + 2 * pieceDetails[_piece].blackMinted;
+		// No restriction for minting Pawn
 		if (_piece != Piece.Pawn) {
+			bool hasRequiredClubStacked = false;
 			for (uint i = 7; i < pieceDetails[_piece].clubRequirement; i++) {
-				require(hasClubStacked(msg.sender, i));
+				if (hasClubStacked(msg.sender, i)) {
+					hasRequiredClubStacked = true;
+					break;
+				}
 			}
-			require(burnedCounterCount[msg.sender] > pieceDetails[_piece].burnRequirement);
+			require(hasRequiredClubStacked, "Doesn't have a required club stacked");
+			require(burnedCounterCount[msg.sender] > pieceDetails[_piece].burnRequirement, "Doesn't burn enough piece");
 			if (pieceDetails[_piece].opponentColorBurnRequirement > 0) {
-				// If the piece requires burning tokens of the opponent's color
-				require(burnedCounterCount[msg.sender] > pieceDetails[_piece].opponentColorBurnRequirement);
+				require(burnedCounterCount[msg.sender] > pieceDetails[_piece].opponentColorBurnRequirement, "Doesn't burn enough opponent piece");
 			}
 		}
 
-		collection.push(_piece);
 		_mint(msg.sender, newItemId);
 		_setTokenURI(newItemId, tokenURI);
+		collection.push(_piece);
 		pieceDetails[_piece].totalMinted++;
-		color == 1 ? pieceDetails[_piece].blackMinted++ : pieceDetails[_piece].whiteMinted++;
+		userColor[msg.sender] == 1 ? pieceDetails[_piece].blackMinted++ : pieceDetails[_piece].whiteMinted++;
 
 		// Add the transaction fee to the piece's balance
 		for (uint8 i = 0; i < 6; i++) {
@@ -106,6 +105,7 @@ contract NumberRunnerClub is ERC721URIStorage {
 		return newItemId;
 	}
 
+	// fonction en cours de production
 	function sellNFT(uint256 tokenId, address buyer) public {
 		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: transfer caller is not owner nor approved");
 		// uint256 taxAmount = (holderBalance[_msgSender()] * 16) / 100;
@@ -122,10 +122,11 @@ contract NumberRunnerClub is ERC721URIStorage {
 
 	function burnNFT(uint256 tokenId) public {
 		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: burn caller is not owner nor approved");
+		require(isStaked[tokenId] == false, "Cannot burn a stacked token");
 		Piece piece = collection[tokenId];
 		require(piece != Piece.King, "Cannot burn the King");
-		uint256 taxAmount = (holderBalance[tokenId] * pieceDetails[piece].burnTax) / 100;
-		holderBalance[tokenId] -= taxAmount;
+		uint256 taxAmount = (tokenBalance[tokenId] * pieceDetails[piece].burnTax) / 100;
+		tokenBalance[tokenId] -= taxAmount;
 		for (uint8 i = 0; i < 6; i++) {
 			PieceDetails memory pieceType = pieceDetails[Piece(i)];
 			if (idStacked[Piece(i)].length > 0) {
@@ -140,7 +141,8 @@ contract NumberRunnerClub is ERC721URIStorage {
 		}
 	}
 
-	function _stake(bytes32 node, address nftContract, uint256 tokenId) private {
+	// comment verifier que le token stake provient bien de la collection ?
+	function _stake(bytes32 node, address nftContract, uint256 tokenId) public {
 		// Ensure the function caller owns the ENS node
 		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 
@@ -152,14 +154,22 @@ contract NumberRunnerClub is ERC721URIStorage {
 		require(!isStaked[tokenId], "This token is already staked");
 		require(isColorValid(tokenId), "User cannot stack this color");
 		Piece _piece = getPieceType(tokenId);
+		bool hasValidClub = false;
 		for (uint i = 7; i < pieceDetails[_piece].clubRequirement; i++) {
 			if (pieceDetails[_piece].palindromeClubRequirement) {
-				if(i == pieceDetails[_piece].clubRequirement){
-					require(isPalindrome(node));
+				if (i == pieceDetails[_piece].clubRequirement) {
+					if (isClub(node, i) && isPalindrome(node)) {
+						hasValidClub = true;
+						break;
+					}
 				}
 			}
-			require(isClub(node, i));
+			if (isClub(node, i)) {
+				hasValidClub = true;
+				break;
+			}
 		}
+		require(hasValidClub, "Doesn't have a valid club name");
 		idToIndex[_piece][tokenId] = idStacked[_piece].length;
 		idStacked[_piece].push(tokenId);
 
@@ -181,7 +191,7 @@ contract NumberRunnerClub is ERC721URIStorage {
 		textResolver.setText(node, "avatar", string(abi.encodePacked("eip721:", nftContract, "/", tokenId)));
 	}
 
-	function _unstake(bytes32 node, address nftContract, uint256 tokenId) private {
+	function _unstake(bytes32 node, address nftContract, uint256 tokenId) public {
 		// Ensure the function caller owns the ENS node
 		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 
@@ -253,10 +263,11 @@ contract NumberRunnerClub is ERC721URIStorage {
 
 		for (uint256 i = 0; i < numStacked; i++) {
 			uint256 tokenId = stackedIds[i];
-			holderBalance[tokenId] += pieceSharePerNFT;
+			tokenBalance[tokenId] += pieceSharePerNFT;
 		}
 	}
 
+	// Let user choose the white or black color
 	function chooseColor(uint256 _color) external {
 		require(_color == 1 || _color == 2, "Invalid color");
 		require(userColor[msg.sender] == 0, "Color already chosen");
