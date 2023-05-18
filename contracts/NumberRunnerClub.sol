@@ -50,6 +50,7 @@ contract NumberRunnerClub is ERC721URIStorage {
 	mapping(address => uint256) private burnedCount;
 	mapping(address => uint256) private burnedCounterCount;
 	mapping(address => uint256[]) public userStackedNFTs;
+	mapping(uint256 => bool) public isStaked;
 
 	constructor(address _ens, address _resolver) ERC721("NumberRunnerClub", "NRC") {
 		pieceDetails[Piece.King] = PieceDetails(2, 0, 0, 0, 350, 0, 0);
@@ -150,6 +151,7 @@ contract NumberRunnerClub is ERC721URIStorage {
 
 		// Ensure the NFT is approved for this contract to manage
 		require(IERC721(nftContract).getApproved(tokenId) == address(this), "NFT not approved for staking");
+		require(!isStaked[tokenId], "This token is already staked");
 		Piece pieceType = getPieceType(tokenId);
 		idToIndex[pieceType][tokenId] = idStacked[pieceType].length;
 		idStacked[pieceType].push(tokenId);
@@ -163,6 +165,7 @@ contract NumberRunnerClub is ERC721URIStorage {
 
 		// Transfer the NFT to this contract
 		IERC721(nftContract).safeTransferFrom(msg.sender, address(this), tokenId);
+		isStaked[tokenId] = true;
 		userStackedNFTs[msg.sender].push(tokenId);
 		// Set the token ID for the ENS node
 		nodeOfTokenId[tokenId] = node;
@@ -191,6 +194,7 @@ contract NumberRunnerClub is ERC721URIStorage {
 		uint256 indexNFT = findIndexOfNFT(msg.sender, tokenId);
 		userStackedNFTs[msg.sender][indexNFT] = userStackedNFTs[msg.sender][userStackedNFTs[msg.sender].length - 1];
 		userStackedNFTs[msg.sender].pop();
+		isStaked[tokenId] = false;
 
 		// Remove the token ID for the ENS node
 		delete nodeOfTokenId[tokenId];
@@ -201,109 +205,72 @@ contract NumberRunnerClub is ERC721URIStorage {
 
 	// rajouter require sur l'id du token s'il correspond bien au type de piece et passer le type en attribut de la fonction mint?
 	function stakePawn(bytes32 node, address nftContract, uint256 tokenId) external {
-		require(is999Club(node) || is10kClub(node) || is100kClub(node));
+		Piece pieceType = getPieceType(tokenId);
+		require(pieceType == Piece.Pawn, "Token ID doesn't correspond to a Pawn");
+		require(isClub(node, 7) || isClub(node, 8) || isClub(node, 9));
 		require(isColorValid(tokenId), "User cannot stack this color");
 		_stake(node, nftContract, tokenId);
 	}
 
 	function stakeBishop(bytes32 node, address nftContract, uint256 tokenId) external {
-		require(is999Club(node) || is10kClub(node) || (is100kClub(node) && isPalindrome(node)));
+		Piece pieceType = getPieceType(tokenId);
+		require(pieceType == Piece.Bishop, "Token ID doesn't correspond to a Bishop");
+		require(isClub(node, 7) || isClub(node, 8) || (isClub(node, 9) && isPalindrome(node)));
 		require(isColorValid(tokenId), "User cannot stack this color");
 		_stake(node, nftContract, tokenId);
 	}
 
 	function stakeKnight(bytes32 node, address nftContract, uint256 tokenId) external {
-		require(is999Club(node) || is10kClub(node));
+		Piece pieceType = getPieceType(tokenId);
+		require(pieceType == Piece.Knight, "Token ID doesn't correspond to a Knight");
+		require(isClub(node, 7) || isClub(node, 8));
 		require(isColorValid(tokenId), "User cannot stack this color");
 		_stake(node, nftContract, tokenId);
 	}
 
 	function stakeRook(bytes32 node, address nftContract, uint256 tokenId) external {
-		require(is999Club(node) || (is10kClub(node) && isPalindrome(node)));
+		Piece pieceType = getPieceType(tokenId);
+		require(pieceType == Piece.Rook, "Token ID doesn't correspond to a Rook");
+		require(isClub(node, 7) || (isClub(node, 8) && isPalindrome(node)));
 		require(isColorValid(tokenId), "User cannot stack this color");
 		_stake(node, nftContract, tokenId);
 	}
 
 	function stakeQueen(bytes32 node, address nftContract, uint256 tokenId) external {
-		require(is999Club(node));
+		Piece pieceType = getPieceType(tokenId);
+		require(pieceType == Piece.Queen, "Token ID doesn't correspond to a Queen");
+		require(isClub(node, 7));
 		require(isColorValid(tokenId), "User cannot stack this color");
 		_stake(node, nftContract, tokenId);
 	}
 
 	function stakeKing(bytes32 node, address nftContract, uint256 tokenId) external {
-		require(is999Club(node) || is10kClub(node));
+		Piece pieceType = getPieceType(tokenId);
+		require(pieceType == Piece.King, "Token ID doesn't correspond to a King");
+		require(isClub(node, 7) || isClub(node, 8));
 		require(isColorValid(tokenId), "User cannot stack this color");
 		_stake(node, nftContract, tokenId);
 	}
 
 	function isColorValid(uint256 tokenId) private view returns (bool) {
-		if (tokenId % 2 == 0) {
-			if (userColor[msg.sender] == 1) {
-				return true;
-			}
-		} else {
-			if (userColor[msg.sender] == 2) {
-				return true;
-			}
-		}
-		return false;
+		return (tokenId % 2 == 0 && userColor[msg.sender] == 1) || (tokenId % 2 != 0 && userColor[msg.sender] == 2);
 	}
 
-	function is999Club(bytes32 name) public pure returns (bool) {
+	function isClub(bytes32 name, uint length) public pure returns (bool) {
 		bytes32 b = name;
-		if (b.length != 7) return false; // Length should be 7 to fit "123.eth"
+		if (b.length != length) return false;
 
 		// Check if the first part is a number
-		for (uint i = 0; i < 3; i++) {
-			if (b[i] < 0x30 || b[i] > 0x39) return false; // ASCII values for '0' and '9'
+		for (uint i = 0; i < b.length - 4; i++) {
+			if (b[i] < 0x30 || b[i] > 0x39) return false;
 		}
 
 		// Check if the last part is ".eth"
 		if (
-			b[3] != 0x2e || // ASCII value for '.'
-			b[4] != 0x65 || // ASCII value for 'e'
-			b[5] != 0x74 || // ASCII value for 't'
-			b[6] != 0x68 // ASCII value for 'h'
-		) return false;
-
-		return true;
-	}
-
-	function is10kClub(bytes32 name) public pure returns (bool) {
-		bytes32 b = name;
-		if (b.length != 8) return false; // Length should be 7 to fit "123.eth"
-
-		// Check if the first part is a number
-		for (uint i = 0; i < 4; i++) {
-			if (b[i] < 0x30 || b[i] > 0x39) return false; // ASCII values for '0' and '9'
-		}
-
-		// Check if the last part is ".eth"
-		if (
-			b[4] != 0x2e || // ASCII value for '.'
-			b[5] != 0x65 || // ASCII value for 'e'
-			b[6] != 0x74 || // ASCII value for 't'
-			b[7] != 0x68 // ASCII value for 'h'
-		) return false;
-
-		return true;
-	}
-
-	function is100kClub(bytes32 name) public pure returns (bool) {
-		bytes32 b = name;
-		if (b.length != 9) return false; // Length should be 7 to fit "123.eth"
-
-		// Check if the first part is a number
-		for (uint i = 0; i < 5; i++) {
-			if (b[i] < 0x30 || b[i] > 0x39) return false; // ASCII values for '0' and '9'
-		}
-
-		// Check if the last part is ".eth"
-		if (
-			b[5] != 0x2e || // ASCII value for '.'
-			b[6] != 0x65 || // ASCII value for 'e'
-			b[7] != 0x74 || // ASCII value for 't'
-			b[8] != 0x68 // ASCII value for 'h'
+			b[b.length - 4] != 0x2e || // ASCII value for '.'
+			b[b.length - 3] != 0x65 || // ASCII value for 'e'
+			b[b.length - 2] != 0x74 || // ASCII value for 't'
+			b[b.length - 1] != 0x68 // ASCII value for 'h'
 		) return false;
 
 		return true;
@@ -370,7 +337,7 @@ contract NumberRunnerClub is ERC721URIStorage {
 	function has999ClubStacked(address user) private view returns (bool) {
 		for (uint256 i = 0; i < userStackedNFTs[user].length; i++) {
 			uint256 tokenId = userStackedNFTs[user][i];
-			if (is999Club(nodeOfTokenId[tokenId])) {
+			if (isClub(nodeOfTokenId[tokenId], 7)) {
 				return true;
 			}
 		}
@@ -380,7 +347,7 @@ contract NumberRunnerClub is ERC721URIStorage {
 	function has10kClubStacked(address user) private view returns (bool) {
 		for (uint256 i = 0; i < userStackedNFTs[user].length; i++) {
 			uint256 tokenId = userStackedNFTs[user][i];
-			if (is10kClub(nodeOfTokenId[tokenId])) {
+			if (isClub(nodeOfTokenId[tokenId], 8)) {
 				return true;
 			}
 		}
@@ -390,7 +357,7 @@ contract NumberRunnerClub is ERC721URIStorage {
 	function has100kClubStacked(address user) private view returns (bool) {
 		for (uint256 i = 0; i < userStackedNFTs[user].length; i++) {
 			uint256 tokenId = userStackedNFTs[user][i];
-			if (is100kClub(nodeOfTokenId[tokenId])) {
+			if (isClub(nodeOfTokenId[tokenId], 9)) {
 				return true;
 			}
 		}
