@@ -5,8 +5,12 @@ import "@ensdomains/ens-contracts/contracts/registry/ENS.sol";
 import "@ensdomains/ens-contracts/contracts/resolvers/profiles/TextResolver.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
 
-contract NumberRunnerClub is ERC721URIStorage {
+contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
+	uint256[10] kingHands;
+	bool isKingsHandSet = false;
+	uint256 public recentRequestId;
 	enum Piece {
 		King,
 		Queen,
@@ -45,8 +49,9 @@ contract NumberRunnerClub is ERC721URIStorage {
 	mapping(address => uint256) private burnedCounterCount; // Mapping of user address to counter of nft from the opponent color burned
 	mapping(address => uint256[]) public userStackedNFTs; // Mapping of user address to his nft stacked in the contract
 	mapping(uint256 => bool) public isStaked; // Mapping of nft stacked in the contract
+	mapping(uint256 => bool) public isKingsHand; // Mapping of King's Hand
 
-	constructor(address _ens, address _resolver) ERC721("NumberRunnerClub", "NRC") {
+	constructor(address _ens, address _resolver, address _vrfCoordinator, address _link) ERC721("NumberRunnerClub", "NRC") VRFV2WrapperConsumerBase(_link, _vrfCoordinator) {
 		pieceDetails[Piece.King] = PieceDetails(2, 0, 0, 0, 350, 0, 0, 8, 0, 0, true);
 		pieceDetails[Piece.Queen] = PieceDetails(10, 0, 0, 0, 225, 35, 2, 7, 15, 15, false);
 		pieceDetails[Piece.Rook] = PieceDetails(50, 0, 0, 0, 150, 35, 12, 8, 15, 15, true);
@@ -191,6 +196,7 @@ contract NumberRunnerClub is ERC721URIStorage {
 		textResolver.setText(node, "avatar", string(abi.encodePacked("eip721:", nftContract, "/", tokenId)));
 	}
 
+	// rajouter isStacked pour verifier que le token est bien stacké sur le contrat
 	function _unstake(bytes32 node, address nftContract, uint256 tokenId) public {
 		// Ensure the function caller owns the ENS node
 		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
@@ -311,5 +317,40 @@ contract NumberRunnerClub is ERC721URIStorage {
 			}
 		}
 		return false;
+	}
+
+	function generateKingHands() public {
+		recentRequestId = requestRandomness(10000000, 15, 10);
+	}
+
+	function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
+		require(!isKingsHandSet, "King's Hands already generated");
+		require(requestId == recentRequestId, "Wrong request ID");
+		uint256 index = 0;
+		for (uint i = 0; i < randomWords.length; i++) {
+			uint256 randomValue = uint256(keccak256(abi.encode(randomWords[i], i)));
+			// Ensure the random number is in the range [362, 9999]
+			randomValue = (randomValue % (9999 - 362 + 1)) + 362;
+			// Check if the number is already in the array
+			bool exists = false;
+			for (uint j = 0; j < index; j++) {
+				if (kingHands[j] == randomValue) {
+					exists = true;
+					break;
+				}
+			}
+			// If number does not exist in the array, add it
+			if (!exists) {
+				kingHands[index] = randomValue;
+				index++;
+				// If we have found 10 unique random numbers, exit the loop
+				if (index == 10) {
+					break;
+				}
+			}
+		}
+		// If we didn't find 10 unique random numbers, revert the transaction
+		require(index == 10, "Not enough unique random numbers generated");
+		isKingsHandSet = true;
 	}
 }

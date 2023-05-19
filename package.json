@@ -2,5 +2,8 @@
   "dependencies": {
     "@ensdomains/ens-contracts": "^0.0.20",
     "@openzeppelin/contracts": "^4.8.3"
+  },
+  "devDependencies": {
+    "@chainlink/contracts": "^0.6.1"
   }
 }
