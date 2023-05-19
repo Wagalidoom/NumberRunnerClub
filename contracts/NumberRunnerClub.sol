@@ -49,7 +49,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
 	mapping(address => uint256) private burnedCounterCount; // Mapping of user address to counter of nft from the opponent color burned
 	mapping(address => uint256[]) public userStackedNFTs; // Mapping of user address to his nft stacked in the contract
 	mapping(uint256 => bool) public isStaked; // Mapping of nft stacked in the contract
-	mapping(uint256 => bool) public isKingsHand; // Mapping of King's Hand
 
 	constructor(address _ens, address _resolver, address _vrfCoordinator, address _link) ERC721("NumberRunnerClub", "NRC") VRFV2WrapperConsumerBase(_link, _vrfCoordinator) {
 		pieceDetails[Piece.King] = PieceDetails(2, 0, 0, 0, 350, 0, 0, 8, 0, 0, true);
@@ -152,10 +151,10 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
 		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 
 		// Ensure the function caller owns the NFT
-		require(IERC721(nftContract).ownerOf(tokenId) == msg.sender, "Not owner of NFT");
+		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 
 		// Ensure the NFT is approved for this contract to manage
-		require(IERC721(nftContract).getApproved(tokenId) == address(this), "NFT not approved for staking");
+		require(getApproved(tokenId) == address(this), "NFT not approved for staking");
 		require(!isStaked[tokenId], "This token is already staked");
 		require(isColorValid(tokenId), "User cannot stack this color");
 		Piece _piece = getPieceType(tokenId);
@@ -319,6 +318,25 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
 		return false;
 	}
 
+	function revealKingHand(uint256 tokenId) public payable returns (bool) {
+		require(msg.value > 200000000000000000); // reveal price fixed at 0.2 eth
+		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
+		require(getPieceType(tokenId) == Piece.Pawn, "Token must be a Pawn");
+		// require(isStaked[tokenId] == false, "Token must be unstack");
+		bool isKingsHand = false;
+		for (uint i = 0; i < 10; i++) {
+			if (tokenId == kingHands[i]) {
+				isKingsHand = true;
+				break;
+			}
+		}
+
+		// TODO send msg.value to the general prize pool
+
+		return isKingsHand;
+	}
+
+	// Passer la fonction en OnlyOwner ?
 	function generateKingHands() public {
 		recentRequestId = requestRandomness(10000000, 15, 10);
 	}
