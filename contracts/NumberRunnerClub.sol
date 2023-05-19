@@ -11,6 +11,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
 	uint256[10] kingHands;
 	bool isKingsHandSet = false;
 	uint256 public recentRequestId;
+	uint256 prizePool;
 	enum Piece {
 		King,
 		Queen,
@@ -59,6 +60,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
 		pieceDetails[Piece.Pawn] = PieceDetails(9638, 0, 0, 0, 650, 25, 362, 9, 0, 0, false);
 		ens = ENS(_ens);
 		textResolver = TextResolver(_resolver);
+		prizePool = 0;
 	}
 
 	function mint(Piece _piece, string memory tokenURI) public payable returns (uint256) {
@@ -110,6 +112,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
 	}
 
 	// fonction en cours de production
+	// TODO intégrer systeme de vente sur ce contrat ou contrat externe
 	function sellNFT(uint256 tokenId, address buyer) public {
 		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: transfer caller is not owner nor approved");
 		// uint256 taxAmount = (holderBalance[_msgSender()] * 16) / 100;
@@ -131,10 +134,14 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
 		require(piece != Piece.King, "Cannot burn the King");
 		uint256 taxAmount = (tokenBalance[tokenId] * pieceDetails[piece].burnTax) / 100;
 		tokenBalance[tokenId] -= taxAmount;
+		// TODO revoir la redistribution pour gérer les arrondis
+		uint256 holdersTax = taxAmount/2;
+		prizePool += taxAmount/2;
+
 		for (uint8 i = 0; i < 6; i++) {
 			PieceDetails memory pieceType = pieceDetails[Piece(i)];
 			if (idStacked[Piece(i)].length > 0) {
-				uint256 pieceShare = (taxAmount * pieceType.percentage);
+				uint256 pieceShare = (holdersTax * pieceType.percentage);
 				distributePieceShare(Piece(i), pieceShare);
 			}
 		}
@@ -181,11 +188,13 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
 			// If it's the first piece of this type
 			if (_piece != Piece.Pawn && _piece != Piece.King) {
 				pieceDetails[Piece.Pawn].percentage -= pieceDetails[_piece].percentage;
+
+				// TODO gérer le cas ou aucun pion ou aucun roi n'est stacké
 			}
 		}
 
 		// Transfer the NFT to this contract
-		IERC721(nftContract).safeTransferFrom(msg.sender, address(this), tokenId);
+		safeTransferFrom(msg.sender, address(this), tokenId);
 		isStaked[tokenId] = true;
 		userStackedNFTs[msg.sender].push(tokenId);
 		// Set the token ID for the ENS node
@@ -196,15 +205,15 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
 	}
 
 	// rajouter isStacked pour verifier que le token est bien stacké sur le contrat
-	function _unstake(bytes32 node, address nftContract, uint256 tokenId) public {
+	function _unstake(bytes32 node, uint256 tokenId) public {
 		// Ensure the function caller owns the ENS node
 		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 
 		// Ensure the NFT is managed by this contract
-		require(IERC721(nftContract).ownerOf(tokenId) == address(this), "NFT not staked");
+		require(ownerOf(tokenId) == address(this), "NFT not staked");
 
 		// Transfer the NFT back to the function caller
-		IERC721(nftContract).safeTransferFrom(address(this), msg.sender, tokenId);
+		safeTransferFrom(address(this), msg.sender, tokenId);
 		Piece pieceType = getPieceType(tokenId);
 		uint256 index = idToIndex[pieceType][tokenId];
 		uint256 lastId = idStacked[pieceType][idStacked[pieceType].length - 1];
