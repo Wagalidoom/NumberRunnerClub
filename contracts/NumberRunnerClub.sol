@@ -53,7 +53,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	Piece[] public collection;
 	uint256 public constant MAX_NFT_SUPPLY = 10000;
 	uint256 public nftMintCounter = 0;
-	uint256 public supplyCounter = 0;
+	uint256 public currentSupply = 0;
 	uint256 public userStacked = 0;
 	bool public hasCollectionFinish = false;
 
@@ -70,7 +70,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	mapping(address => uint256[]) public userStackedNFTs; // Mapping of user address to his nft stacked in the contract
 	mapping(uint256 => bool) public isStaked; // Mapping of nft stacked in the contract
 	mapping(uint256 => Proposal) public proposals; // Mapping of nft stacked in the contract
-	mapping(address => bool) public hasClaimedGeneral;
+	mapping(uint256 => bool) public hasClaimedGeneral;
 
 	constructor(address _ens, address _resolver, address _vrfCoordinator, address _link) ERC721("NumberRunnerClub", "NRC") VRFV2WrapperConsumerBase(_link, _vrfCoordinator) {
 		pieceDetails[Piece.King] = PieceDetails(2, 0, 0, 0, 350, 0, 0, 8, 0, 0, true);
@@ -122,7 +122,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		pieceDetails[_piece].totalMinted++;
 		userColor[msg.sender] == 1 ? pieceDetails[_piece].blackMinted++ : pieceDetails[_piece].whiteMinted++;
 		nftMintCounter++;
-		supplyCounter++;
+		currentSupply++;
 
 		// Add the transaction fee to the piece's balance
 		for (uint8 i = 0; i < 6; i++) {
@@ -174,9 +174,9 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		if (!isColorValid(tokenId)) {
 			burnedCounterCount[msg.sender]++;
 		}
-		supplyCounter--;
+		currentSupply--;
 		if (nftMintCounter == MAX_NFT_SUPPLY) {
-			if (supplyCounter == 999) {
+			if (currentSupply == 999) {
 				hasCollectionFinish = true;
 			}
 		}
@@ -452,10 +452,18 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		proposalCounter++;
 	}
 
-	function claimPrizePool() public {
-		require(hasClaimedGeneral[msg.sender] == false, "User has already claimed gains");
-		require(hasClubStacked(msg.sender, 8), "Only 10kClub and 999Club can claim Prize");
-
-		// TODO verify how much user has stacked nft in the contract
+	function claimPrizePool(uint256 tokenId) public {
+		require(currentSupply < 999, "Collection not ended yet");
+		require(isClub(nodeOfTokenId[tokenId], 7) || (isClub(nodeOfTokenId[tokenId], 8) && isPalindrome(nodeOfTokenId[tokenId])), "Only 999Club and 10kClub Palindrome can claim Prize");
+		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
+		require(hasClaimedGeneral[tokenId] == false, "Prize already claimed on this nft");
+		// TODO echelle des pourcentages dans les calculs
+		uint256 prizePoolTax = (prizePool / 999) * 35;
+		prizePool -= (prizePool / 999) - prizePoolTax;
+		payable(msg.sender).transfer((prizePool / 999) - prizePoolTax);
+		hasClaimedGeneral[tokenId] = true;
 	}
 }
+
+// notes : pourquoi vendre sur le marché secondaire du contrat plutot que sur une marketplace type opensea si la cagnotte personnelle
+// a claim est trop faible comparé aux taxes ?
