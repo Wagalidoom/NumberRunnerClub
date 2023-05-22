@@ -417,6 +417,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	function executeProposal(uint256 proposalId) external onlyOwner nonReentrant returns (bool) { // TODDO verifier implementation de nonReentrant
 		Proposal storage proposal = proposals[proposalId];
 		require(proposal.executed == false);
+		require(proposal.price < prizePool, "Not enough fund in the prize pool");
 		bool _success = false;
 		bytes memory _result;
 		if (proposal.votes > 10) {
@@ -427,6 +428,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	}
 
 	function createProposal(bytes32 ensName, uint256 price, bytes calldata rawTx) external onlyOwner {
+		require(price < prizePool, "Not enough fund in the prize pool");
 		proposals[proposalCounter].ensName = ensName;
 		proposals[proposalCounter].price = price;
 		proposals[proposalCounter].executed = false;
