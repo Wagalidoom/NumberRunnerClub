@@ -52,10 +52,9 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 
 	Piece[] public collection;
 	uint256 public constant MAX_NFT_SUPPLY = 10000;
-	uint256 public nftMintCounter = 0;
+	uint256 public totalMinted = 0;
 	uint256 public currentSupply = 0;
 	uint256 public userStacked = 0;
-	bool public hasCollectionFinish = false;
 
 	ENS ens;
 	TextResolver textResolver;
@@ -121,7 +120,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		collection.push(_piece);
 		pieceDetails[_piece].totalMinted++;
 		userColor[msg.sender] == 1 ? pieceDetails[_piece].blackMinted++ : pieceDetails[_piece].whiteMinted++;
-		nftMintCounter++;
+		totalMinted++;
 		currentSupply++;
 
 		// Add the transaction fee to the piece's balance
@@ -138,6 +137,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	// fonction en cours de production
 	// TODO intégrer systeme de vente sur ce contrat ou contrat externe
 	function sellNFT(uint256 tokenId, address buyer) public {
+		require(totalMinted == MAX_NFT_SUPPLY && currentSupply > 999, "Collection ended");
 		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: transfer caller is not owner nor approved");
 		// uint256 taxAmount = (holderBalance[_msgSender()] * 16) / 100;
 		// holderBalance[_msgSender()] -= taxAmount;
@@ -152,12 +152,13 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	}
 
 	function burnNFT(uint256 tokenId) public {
+		require(totalMinted == MAX_NFT_SUPPLY && currentSupply > 999, "Collection ended");
 		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: burn caller is not owner nor approved");
 		require(isStaked[tokenId] == false, "Cannot burn a stacked token");
 		Piece piece = collection[tokenId];
 		require(piece != Piece.King, "Cannot burn the King");
 		uint256 taxAmount = (tokenBalance[tokenId] * pieceDetails[piece].burnTax) / 100;
-		tokenBalance[tokenId] -= taxAmount;
+		uint256 balance = tokenBalance[tokenId];
 		// TODO revoir la redistribution pour gérer les arrondis
 		uint256 holdersTax = taxAmount / 2;
 		prizePool += taxAmount / 2;
@@ -175,11 +176,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 			burnedCounterCount[msg.sender]++;
 		}
 		currentSupply--;
-		if (nftMintCounter == MAX_NFT_SUPPLY) {
-			if (currentSupply == 999) {
-				hasCollectionFinish = true;
-			}
-		}
+		payable(msg.sender).transfer(balance - taxAmount);
 	}
 
 	// comment verifier que le token stake provient bien de la collection ?
@@ -454,7 +451,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 
 	// how long to claim prize pool before ending
 	function claimPrizePool(uint256 tokenId) public {
-		require(currentSupply < 999, "Collection not ended yet");
+		require(totalMinted == MAX_NFT_SUPPLY && currentSupply <= 999, "Collection not ended yet");
 		require(isClub(nodeOfTokenId[tokenId], 7) || (isClub(nodeOfTokenId[tokenId], 8) && isPalindrome(nodeOfTokenId[tokenId])), "Only 999Club and 10kClub Palindrome can claim Prize");
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		require(hasClaimedGeneral[tokenId] == false, "Prize already claimed on this nft");
@@ -466,7 +463,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	}
 
 	function claimPrivatePrize(uint256 tokenId) public {
-		require(currentSupply < 999, "Burn or sell the nft to claim your rewards");
+		require(totalMinted == MAX_NFT_SUPPLY && currentSupply <= 999, "Burn or sell the nft to claim your rewards");
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		uint256 balance = tokenBalance[tokenId];
 		tokenBalance[tokenId] = 0;
