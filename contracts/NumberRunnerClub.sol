@@ -6,12 +6,17 @@ import "@ensdomains/ens-contracts/contracts/resolvers/profiles/TextResolver.sol"
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./INumberRunnerClub.sol";
 
-contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
+contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable, ReentrancyGuard {
 	uint256[10] kingHands;
 	bool isKingsHandSet = false;
 	uint256 public recentRequestId;
 	uint256 prizePool;
+	uint256 proposalCounter;
+
 	enum Piece {
 		King,
 		Queen,
@@ -35,6 +40,15 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
 		bool palindromeClubRequirement;
 	}
 
+	struct Proposal {
+		bytes32 ensName;
+		uint256 price;
+		uint256 votes;
+		bool executed;
+		bytes rawTx;
+		mapping(uint256 => bool) voted;
+	}
+
 	Piece[] public collection;
 	uint256 public constant MAX_NFT_SUPPLY = 10000;
 
@@ -50,6 +64,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
 	mapping(address => uint256) private burnedCounterCount; // Mapping of user address to counter of nft from the opponent color burned
 	mapping(address => uint256[]) public userStackedNFTs; // Mapping of user address to his nft stacked in the contract
 	mapping(uint256 => bool) public isStaked; // Mapping of nft stacked in the contract
+	mapping(uint256 => Proposal) public proposals; // Mapping of nft stacked in the contract
 
 	constructor(address _ens, address _resolver, address _vrfCoordinator, address _link) ERC721("NumberRunnerClub", "NRC") VRFV2WrapperConsumerBase(_link, _vrfCoordinator) {
 		pieceDetails[Piece.King] = PieceDetails(2, 0, 0, 0, 350, 0, 0, 8, 0, 0, true);
@@ -135,8 +150,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
 		uint256 taxAmount = (tokenBalance[tokenId] * pieceDetails[piece].burnTax) / 100;
 		tokenBalance[tokenId] -= taxAmount;
 		// TODO revoir la redistribution pour gérer les arrondis
-		uint256 holdersTax = taxAmount/2;
-		prizePool += taxAmount/2;
+		uint256 holdersTax = taxAmount / 2;
+		prizePool += taxAmount / 2;
 
 		for (uint8 i = 0; i < 6; i++) {
 			PieceDetails memory pieceType = pieceDetails[Piece(i)];
@@ -252,7 +267,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
 		return true;
 	}
 
-	function getPieceType(uint256 nftId) private pure returns (Piece) {
+	function getPieceType(uint256 nftId) public pure returns (Piece) {
 		require(nftId < MAX_NFT_SUPPLY, "NFT ID out of range");
 		if (nftId >= 0 && nftId < 2) {
 			return Piece.King;
@@ -270,7 +285,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
 	}
 
 	function distributePieceShare(Piece pieceType, uint256 pieceShare) private {
-		// regler le pb de distribution pour n'importe quelle couleur
 		uint256[] storage stackedIds = idStacked[pieceType];
 		uint256 numStacked = stackedIds.length;
 		uint256 pieceSharePerNFT = pieceShare / numStacked;
@@ -339,8 +353,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
 				break;
 			}
 		}
-
-		// TODO send msg.value to the general prize pool
+		prizePool += msg.value;
 
 		return isKingsHand;
 	}
@@ -379,5 +392,45 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase {
 		// If we didn't find 10 unique random numbers, revert the transaction
 		require(index == 10, "Not enough unique random numbers generated");
 		isKingsHandSet = true;
+	}
+
+	function vote(uint256 proposalId, uint256 tokenId, bool voteFor) public {
+		Piece piece = getPieceType(tokenId);
+		require(piece == Piece.Queen || piece == Piece.King, "Only King and Queen can vote to general pirze pool");
+		require(ownerOf(tokenId) == msg.sender);
+		Proposal storage proposal = proposals[proposalId];
+		require(!proposal.voted[tokenId], "Cannot vote more than once with the same token");
+		if (voteFor) {
+			if (piece == Piece.King) {
+				proposal.votes += 4;
+			}
+			proposal.votes++;
+		} else {
+			if (piece == Piece.King) {
+				proposal.votes -= 4;
+			}
+			proposal.votes--;
+		}
+		proposal.voted[tokenId] = true;
+	}
+
+	function executeProposal(uint256 proposalId) external onlyOwner nonReentrant returns (bool) { // TODDO verifier implementation de nonReentrant
+		Proposal storage proposal = proposals[proposalId];
+		require(proposal.executed == false);
+		bool _success = false;
+		bytes memory _result;
+		if (proposal.votes > 10) {
+			(_success, _result) = address(this).call(proposal.rawTx);
+		}
+		proposal.executed = true;
+		return _success;
+	}
+
+	function createProposal(bytes32 ensName, uint256 price, bytes calldata rawTx) external onlyOwner {
+		proposals[proposalCounter].ensName = ensName;
+		proposals[proposalCounter].price = price;
+		proposals[proposalCounter].executed = false;
+		proposals[proposalCounter].rawTx = rawTx;
+		proposalCounter++;
 	}
 }
