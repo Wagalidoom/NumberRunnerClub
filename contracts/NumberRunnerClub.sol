@@ -452,6 +452,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		proposalCounter++;
 	}
 
+	// how long to claim prize pool before ending
 	function claimPrizePool(uint256 tokenId) public {
 		require(currentSupply < 999, "Collection not ended yet");
 		require(isClub(nodeOfTokenId[tokenId], 7) || (isClub(nodeOfTokenId[tokenId], 8) && isPalindrome(nodeOfTokenId[tokenId])), "Only 999Club and 10kClub Palindrome can claim Prize");
@@ -462,6 +463,14 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		prizePool -= (prizePool / 999) - prizePoolTax;
 		payable(msg.sender).transfer((prizePool / 999) - prizePoolTax);
 		hasClaimedGeneral[tokenId] = true;
+	}
+
+	function claimPrivatePrize(uint256 tokenId) public {
+		require(currentSupply < 999, "Burn or sell the nft to claim your rewards");
+		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
+		uint256 balance = tokenBalance[tokenId];
+		tokenBalance[tokenId] = 0;
+		payable(msg.sender).transfer(balance);
 	}
 }
 
