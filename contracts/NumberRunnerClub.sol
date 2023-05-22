@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./INumberRunnerClub.sol";
 
+// TODO add system of burn/sell before claiming personal prize
 contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable, ReentrancyGuard {
 	uint256[10] kingHands;
 	bool isKingsHandSet = false;
@@ -51,6 +52,10 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 
 	Piece[] public collection;
 	uint256 public constant MAX_NFT_SUPPLY = 10000;
+	uint256 public nftMintCounter = 0;
+	uint256 public supplyCounter = 0;
+	uint256 public userStacked = 0;
+	bool public hasCollectionFinish = false;
 
 	ENS ens;
 	TextResolver textResolver;
@@ -65,6 +70,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	mapping(address => uint256[]) public userStackedNFTs; // Mapping of user address to his nft stacked in the contract
 	mapping(uint256 => bool) public isStaked; // Mapping of nft stacked in the contract
 	mapping(uint256 => Proposal) public proposals; // Mapping of nft stacked in the contract
+	mapping(address => bool) public hasClaimedGeneral;
 
 	constructor(address _ens, address _resolver, address _vrfCoordinator, address _link) ERC721("NumberRunnerClub", "NRC") VRFV2WrapperConsumerBase(_link, _vrfCoordinator) {
 		pieceDetails[Piece.King] = PieceDetails(2, 0, 0, 0, 350, 0, 0, 8, 0, 0, true);
@@ -78,6 +84,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		prizePool = 0;
 	}
 
+	// TODO à qui redistribuer les frais de mint sur le premier mint et/ou quand il n'y a pas de nft stacké
 	function mint(Piece _piece, string memory tokenURI) public payable returns (uint256) {
 		require(msg.value > 200000000000000000); // minting price fixed at 0.2 eth
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
@@ -114,6 +121,8 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		collection.push(_piece);
 		pieceDetails[_piece].totalMinted++;
 		userColor[msg.sender] == 1 ? pieceDetails[_piece].blackMinted++ : pieceDetails[_piece].whiteMinted++;
+		nftMintCounter++;
+		supplyCounter++;
 
 		// Add the transaction fee to the piece's balance
 		for (uint8 i = 0; i < 6; i++) {
@@ -164,6 +173,12 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		burnedCount[msg.sender]++;
 		if (!isColorValid(tokenId)) {
 			burnedCounterCount[msg.sender]++;
+		}
+		supplyCounter--;
+		if (nftMintCounter == MAX_NFT_SUPPLY) {
+			if (supplyCounter == 999) {
+				hasCollectionFinish = true;
+			}
 		}
 	}
 
@@ -414,7 +429,8 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		proposal.voted[tokenId] = true;
 	}
 
-	function executeProposal(uint256 proposalId) external onlyOwner nonReentrant returns (bool) { // TODDO verifier implementation de nonReentrant
+	function executeProposal(uint256 proposalId) external onlyOwner nonReentrant returns (bool) {
+		// TODO verifier implementation de nonReentrant
 		Proposal storage proposal = proposals[proposalId];
 		require(proposal.executed == false);
 		require(proposal.price < prizePool, "Not enough fund in the prize pool");
@@ -434,5 +450,12 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		proposals[proposalCounter].executed = false;
 		proposals[proposalCounter].rawTx = rawTx;
 		proposalCounter++;
+	}
+
+	function claimPrizePool() public {
+		require(hasClaimedGeneral[msg.sender] == false, "User has already claimed gains");
+		require(hasClubStacked(msg.sender, 8), "Only 10kClub and 999Club can claim Prize");
+
+		// TODO verify how much user has stacked nft in the contract
 	}
 }
