@@ -12,12 +12,6 @@ import "./INumberRunnerClub.sol";
 
 // TODO add system of burn/sell before claiming personal prize
 contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable, ReentrancyGuard {
-	uint256[10] kingHands;
-	bool isKingsHandSet = false;
-	uint256 public recentRequestId;
-	uint256 prizePool;
-	uint256 proposalCounter;
-
 	enum Piece {
 		King,
 		Queen,
@@ -55,6 +49,11 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	uint256 public totalMinted = 0;
 	uint256 public currentSupply = 0;
 	uint256 public userStacked = 0;
+	uint256[10] kingHands;
+	bool isKingsHandSet = false;
+	uint256 public recentRequestId;
+	uint256 prizePool;
+	uint256 proposalCounter;
 
 	ENS ens;
 	TextResolver textResolver;
