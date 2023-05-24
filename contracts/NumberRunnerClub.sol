@@ -417,11 +417,33 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		isKingsHandSet = true;
 	}
 
+
+	// Laquelle des deux fonctions utiliser ? Et reverser a la cagnotte du nft ou directement transfer au holder?
 	function distributeKingAuction() private {
 		uint256 pieceShare = kingHandsPrize / kingHands.length;
 		for (uint256 i = 0; i < kingHands.lenght; i++) {
 			tokenBalance[kingHands[i]] += pieceShare;
 		}
+	}
+
+	function claimKingHand(uint256 tokenId) public {
+		require(totalMinted == MAX_NFT_SUPPLY && currentSupply == 999, "Collection not ended yet");
+
+		// Ensure the function caller owns the NFT
+		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
+		uint256 i = 0;
+		for(i; i < kingHands.lenght; i++) {
+			if(tokenId == kingHands[i]) {
+				distributeKingAuction = true;
+				break;
+			}
+		}
+		require(kingHand, "Token must be a King's Hand");
+		uint256 pieceShare = kingHandsPrize / kingHands.length;
+		tokenBalance[tokenId] += pieceShare;
+		kingHands[i] = kingHands[kingHands.lenght - 1];
+		kingHands.pop();
+
 	}
 
 	function vote(uint256 proposalId, uint256 tokenId, bool voteFor) public {
