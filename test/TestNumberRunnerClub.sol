@@ -8,22 +8,12 @@ import "../contracts/NumberRunnerClub.sol";
 
 contract TestNumberRunnerClub {
 
-//   function testInitialBalanceUsingDeployedContract() public {
-//     NumberRunnerClub NRC = NumberRunnerClub(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e,
-//     0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e, 0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e, 0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
-
-//     uint expected = 10000;
-
-//     Assert.equal(NRC.getBalance(tx.origin), expected, "Owner should have 10000 MetaCoin initially");
-//   }
-
-  function testInitialBalanceWithNewNRC() public {
-    NumberRunnerClub NRC = new NumberRunnerClub(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e,
-    0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e, 0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e, 0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
+  function testInitialBalanceUsingDeployedContract() public {
+    NumberRunnerClub nrc = NumberRunnerClub(DeployedAddresses.NumberRunnerClub());
 
     uint expected = 10000;
 
-    // Assert.equal(NRC.getBalance(tx.origin), expected, "Owner should have 10000 MetaCoin initially");
+    // Assert.equal(meta.getBalance(tx.origin), expected, "Owner should have 10000 MetaCoin initially");
   }
 
 }
