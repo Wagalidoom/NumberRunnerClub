@@ -14,7 +14,7 @@ contract KingAuction {
 	ERC721URIStorage public nftContract;
 	event AuctionEnded(address winner, uint256 amount, uint256 color);
 
-	constructor(uint256 _biddingTime, address _nftAddress, uint256[10] _kingHands) {
+	constructor(uint256 _biddingTime, address _nftAddress, uint256[10] memory _kingHands) {
 		owner = msg.sender;
 		auctionEndTime = block.timestamp + _biddingTime;
 		minPrice = 2 ether; // Minimum price at the end of auction

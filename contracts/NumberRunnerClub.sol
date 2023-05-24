@@ -86,9 +86,10 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	}
 
 	// TODO à qui redistribuer les frais de mint sur le premier mint et/ou quand il n'y a pas de nft stacké
-	function mint(Piece _piece, string memory tokenURI) public payable returns (uint256) {
+	function mint(uint8 _pieceType) public payable returns (uint256) {
 		require(msg.value > 200000000000000000); // minting price fixed at 0.2 eth
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
+		Piece _piece = Piece(_pieceType);
 		require(pieceDetails[_piece].totalMinted < pieceDetails[_piece].maxSupply, "Max supply for this piece type reached");
 		require(_piece != Piece.King, "Cannot mint the king");
 		if (userColor[msg.sender] == 1) {
@@ -118,7 +119,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		}
 
 		_mint(msg.sender, newItemId);
-		_setTokenURI(newItemId, tokenURI);
+		_setTokenURI(newItemId, "");
 		collection.push(_piece);
 		pieceDetails[_piece].totalMinted++;
 		userColor[msg.sender] == 1 ? pieceDetails[_piece].blackMinted++ : pieceDetails[_piece].whiteMinted++;
@@ -319,7 +320,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	}
 
 	// Let user choose the white or black color
-	function chooseColor(uint256 _color) external {
+	function chooseColor(uint256 _color) public {
 		require(_color == 1 || _color == 2, "Invalid color");
 		require(userColor[msg.sender] == 0, "Color already chosen");
 		userColor[msg.sender] = _color;
@@ -512,9 +513,9 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	}
 
 	// a terminer
-	function auctionEnded(uint256 _price, address _newOwner, uint256 _tokenId) public {
-		kingHandsPrize += _price;
-	}
+	// function auctionEnded(uint256 _price, address _newOwner, uint256 _tokenId) public {
+	// 	kingHandsPrize += _price;
+	// }
 }
 
 // notes : pourquoi vendre sur le marché secondaire du contrat plutot que sur une marketplace type opensea si la cagnotte personnelle
