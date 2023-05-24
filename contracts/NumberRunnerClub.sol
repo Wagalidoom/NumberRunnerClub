@@ -54,6 +54,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	uint256 public recentRequestId;
 	uint256 prizePool;
 	uint256 proposalCounter;
+	uint256 kingHandsPrize = 0;
 
 	ENS ens;
 	TextResolver textResolver;
@@ -69,6 +70,8 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	mapping(uint256 => bool) public isStaked; // Mapping of nft stacked in the contract
 	mapping(uint256 => Proposal) public proposals; // Mapping of nft stacked in the contract
 	mapping(uint256 => bool) public hasClaimedGeneral;
+
+	event KingHandBurned(uint256 tokenId);
 
 	constructor(address _ens, address _resolver, address _vrfCoordinator, address _link) ERC721("NumberRunnerClub", "NRC") VRFV2WrapperConsumerBase(_link, _vrfCoordinator) {
 		pieceDetails[Piece.King] = PieceDetails(2, 0, 0, 0, 350, 0, 0, 8, 0, 0, true);
@@ -173,6 +176,15 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		burnedCount[msg.sender]++;
 		if (!isColorValid(tokenId)) {
 			burnedCounterCount[msg.sender]++;
+		}
+		if (getPieceType(tokenId) == Piece.Pawn) {
+			for (uint256 i = 0; i < kingHands.lenght; i++) {
+				if(tokenId == kingHands[i]) {
+					kingHands[i] = kingHands[kingHands.length - 1];
+					kingHands.pop();
+					emit KingHandBurned(tokenId);
+				}
+			}
 		}
 		currentSupply--;
 		payable(msg.sender).transfer(balance - taxAmount);
@@ -405,6 +417,13 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		isKingsHandSet = true;
 	}
 
+	function distributeKingAuction() private {
+		uint256 pieceShare = kingHandsPrize / kingHands.length;
+		for (uint256 i = 0; i < kingHands.lenght; i++) {
+			tokenBalance[kingHands[i]] += pieceShare;
+		}
+	}
+
 	function vote(uint256 proposalId, uint256 tokenId, bool voteFor) public {
 		Piece piece = getPieceType(tokenId);
 		require(piece == Piece.Queen || piece == Piece.King, "Only King and Queen can vote to general pirze pool");
@@ -468,7 +487,14 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		tokenBalance[tokenId] = 0;
 		payable(msg.sender).transfer(balance);
 	}
+
+	function auctionEnded(uint256 _price, address _newOwner, uint256 _tokenId) {
+		kingHandsPrize += _price;
+	}
 }
 
 // notes : pourquoi vendre sur le marché secondaire du contrat plutot que sur une marketplace type opensea si la cagnotte personnelle
 // a claim est trop faible comparé aux taxes ?
+
+// le cas ou tous les nfts sont mint puis on burn jusqu a 999
+// le cas ou il y a moins de 999 nft et ont mint tout jusqu'a atteindre 999 nft
