@@ -49,7 +49,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	uint256 public totalMinted = 0;
 	uint256 public currentSupply = 0;
 	uint256 public userStacked = 0;
-	uint256[10] kingHands;
+	uint256[] kingHands;
 	bool isKingsHandSet = false;
 	uint256 public recentRequestId;
 	uint256 prizePool;
@@ -178,7 +178,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 			burnedCounterCount[msg.sender]++;
 		}
 		if (getPieceType(tokenId) == Piece.Pawn) {
-			for (uint256 i = 0; i < kingHands.lenght; i++) {
+			for (uint256 i = 0; i < kingHands.length; i++) {
 				if(tokenId == kingHands[i]) {
 					kingHands[i] = kingHands[kingHands.length - 1];
 					kingHands.pop();
@@ -421,7 +421,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	// Laquelle des deux fonctions utiliser ? Et reverser a la cagnotte du nft ou directement transfer au holder?
 	function distributeKingAuction() private {
 		uint256 pieceShare = kingHandsPrize / kingHands.length;
-		for (uint256 i = 0; i < kingHands.lenght; i++) {
+		for (uint256 i = 0; i < kingHands.length; i++) {
 			tokenBalance[kingHands[i]] += pieceShare;
 		}
 	}
@@ -433,7 +433,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		uint256 i = 0;
 		bool isKingHand = false;
-		for(i; i < kingHands.lenght; i++) {
+		for(i; i < kingHands.length; i++) {
 			if(tokenId == kingHands[i]) {
 				isKingHand = true;
 				break;
@@ -442,7 +442,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		require(isKingHand, "Token must be a King's Hand");
 		uint256 pieceShare = kingHandsPrize / kingHands.length;
 		tokenBalance[tokenId] += pieceShare;
-		kingHands[i] = kingHands[kingHands.lenght - 1];
+		kingHands[i] = kingHands[kingHands.length - 1];
 		kingHands.pop();
 
 	}
@@ -511,7 +511,8 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		payable(msg.sender).transfer(balance);
 	}
 
-	function auctionEnded(uint256 _price, address _newOwner, uint256 _tokenId) {
+	// a terminer
+	function auctionEnded(uint256 _price, address _newOwner, uint256 _tokenId) public {
 		kingHandsPrize += _price;
 	}
 }
