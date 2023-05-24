@@ -10,10 +10,6 @@ contract TestNumberRunnerClub {
 
   function testInitialBalanceUsingDeployedContract() public {
     NumberRunnerClub nrc = NumberRunnerClub(DeployedAddresses.NumberRunnerClub());
-
-    uint expected = 10000;
-
-    // Assert.equal(meta.getBalance(tx.origin), expected, "Owner should have 10000 MetaCoin initially");
+    nrc.mint(5);
   }
-
 }

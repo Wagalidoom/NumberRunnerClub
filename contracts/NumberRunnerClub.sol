@@ -87,7 +87,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 
 	// TODO à qui redistribuer les frais de mint sur le premier mint et/ou quand il n'y a pas de nft stacké
 	function mint(uint8 _pieceType) public payable returns (uint256) {
-		require(msg.value > 200000000000000000); // minting price fixed at 0.2 eth
+		require(msg.value >= 200000000000000000); // minting price fixed at 0.2 eth
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
 		Piece _piece = Piece(_pieceType);
 		require(pieceDetails[_piece].totalMinted < pieceDetails[_piece].maxSupply, "Max supply for this piece type reached");
@@ -101,7 +101,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		// Set the id of the minting token from the type and color of the piece chosen
 		// Black token have even id
 		// White token have odd id
-		uint256 newItemId = userColor[msg.sender] == 1 ? pieceDetails[_piece].startingId + 2 * pieceDetails[_piece].blackMinted : pieceDetails[_piece].startingId + 1 + 2 * pieceDetails[_piece].blackMinted;
+		uint256 newItemId = userColor[msg.sender] == 1 ? pieceDetails[_piece].startingId + 2 * pieceDetails[_piece].blackMinted : pieceDetails[_piece].startingId + 1 + 2 * pieceDetails[_piece].whiteMinted;
 		// No restriction for minting Pawn
 		if (_piece != Piece.Pawn) {
 			bool hasRequiredClubStacked = false;
@@ -192,7 +192,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	}
 
 	// comment verifier que le token stake provient bien de la collection ?
-	function _stake(bytes32 node, address nftContract, uint256 tokenId) public {
+	function _stake(bytes32 node, uint256 tokenId) public {
 		// Ensure the function caller owns the ENS node
 		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 
@@ -240,10 +240,11 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		nodeOfTokenId[tokenId] = node;
 
 		// Set the NFT as the avatar for the ENS node
-		textResolver.setText(node, "avatar", string(abi.encodePacked("eip721:", nftContract, "/", tokenId)));
+		textResolver.setText(node, "avatar", string(abi.encodePacked("eip721:", address(this), "/", tokenId)));
 	}
 
 	// rajouter isStacked pour verifier que le token est bien stacké sur le contrat
+	// vérifier que le token id a bien été stacké avec le nom de domaine en question
 	function _unstake(bytes32 node, uint256 tokenId) public {
 		// Ensure the function caller owns the ENS node
 		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
