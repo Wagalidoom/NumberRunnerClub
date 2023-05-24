@@ -432,13 +432,14 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		// Ensure the function caller owns the NFT
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		uint256 i = 0;
+		bool isKingHand = false;
 		for(i; i < kingHands.lenght; i++) {
 			if(tokenId == kingHands[i]) {
-				distributeKingAuction = true;
+				isKingHand = true;
 				break;
 			}
 		}
-		require(kingHand, "Token must be a King's Hand");
+		require(isKingHand, "Token must be a King's Hand");
 		uint256 pieceShare = kingHandsPrize / kingHands.length;
 		tokenBalance[tokenId] += pieceShare;
 		kingHands[i] = kingHands[kingHands.lenght - 1];
