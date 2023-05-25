@@ -8,10 +8,10 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "./INumberRunnerClub.sol";
+// import "./INumberRunnerClub.sol";
 
 // TODO add system of burn/sell before claiming personal prize
-contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable, ReentrancyGuard {
+contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable, ReentrancyGuard {
 	enum Piece {
 		King,
 		Queen,
