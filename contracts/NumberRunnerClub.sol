@@ -8,10 +8,10 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-// import "./INumberRunnerClub.sol";
+import "./INumberRunnerClub.sol";
 
 // TODO add system of burn/sell before claiming personal prize
-contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable, ReentrancyGuard {
+contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable, ReentrancyGuard {
 	enum Piece {
 		King,
 		Queen,
@@ -142,8 +142,10 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	function sellNFT(uint256 tokenId, address buyer) public {
 		require(totalMinted == MAX_NFT_SUPPLY && currentSupply > 999, "Collection ended");
 		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: transfer caller is not owner nor approved");
-		// uint256 taxAmount = (holderBalance[_msgSender()] * 16) / 100;
-		// holderBalance[_msgSender()] -= taxAmount;
+		uint256 taxAmount = (tokenBalance[tokenId] * 16) / 100;
+		uint256 balance = tokenBalance[tokenId];
+		uint256 holdersTax = taxAmount / 2;
+		prizePool += taxAmount / 2;
 		for (uint8 i = 0; i < 6; i++) {
 			// PieceDetails memory pieceType = pieceDetails[Piece(i)];
 			// if (pieceType.currentSupply > 0) {
@@ -151,6 +153,9 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 			//     pieceBalance[Piece(i)] += pieceShare;
 			// }
 		}
+		
+		tokenBalance[tokenId] = 0;
+		payable(msg.sender).transfer(balance - taxAmount);
 		safeTransferFrom(_msgSender(), buyer, tokenId);
 	}
 
@@ -158,7 +163,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		require(totalMinted == MAX_NFT_SUPPLY && currentSupply > 999, "Collection ended");
 		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: burn caller is not owner nor approved");
 		require(isStaked[tokenId] == false, "Cannot burn a stacked token");
-		Piece piece = collection[tokenId];
+		Piece piece = getPieceType(tokenId);
 		require(piece != Piece.King, "Cannot burn the King");
 		uint256 taxAmount = (tokenBalance[tokenId] * pieceDetails[piece].burnTax) / 100;
 		uint256 balance = tokenBalance[tokenId];
@@ -188,6 +193,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 			}
 		}
 		currentSupply--;
+		tokenBalance[tokenId] = 0;
 		payable(msg.sender).transfer(balance - taxAmount);
 	}
 
