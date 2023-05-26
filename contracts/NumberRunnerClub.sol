@@ -200,6 +200,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	// comment verifier que le token stake provient bien de la collection ?
 	function _stake(bytes32 node, uint256 tokenId) public {
 		// Ensure the function caller owns the ENS node
+		require(!isStaked[tokenId], "Token is already stacked");
 		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 
 		// Ensure the function caller owns the NFT
@@ -249,10 +250,10 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		textResolver.setText(node, "avatar", string(abi.encodePacked("eip721:", address(this), "/", tokenId)));
 	}
 
-	// rajouter isStacked pour verifier que le token est bien stacké sur le contrat
-	// vérifier que le token id a bien été stacké avec le nom de domaine en question
 	function _unstake(bytes32 node, uint256 tokenId) public {
 		// Ensure the function caller owns the ENS node
+		require(isStaked[tokenId], "Token is not stacked yet");
+		require(nodeOfTokenId[tokenId] == node, "ENS name must match the token stacked");
 		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 
 		// Ensure the NFT is managed by this contract
@@ -272,6 +273,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		userStackedNFTs[msg.sender][indexNFT] = userStackedNFTs[msg.sender][userStackedNFTs[msg.sender].length - 1];
 		userStackedNFTs[msg.sender].pop();
 		isStaked[tokenId] = false;
+		nodeOfTokenId[tokenId] = 0x0;
 
 		// Remove the token ID for the ENS node
 		delete nodeOfTokenId[tokenId];
