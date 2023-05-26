@@ -131,7 +131,8 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 			PieceDetails memory piece = pieceDetails[Piece(i)];
 			if (idStacked[Piece(i)].length > 0) {
 				uint256 pieceShare = (100000000000000 * piece.percentage);
-				distributePieceShare(Piece(i), pieceShare);
+				cagnotte[pieceType] += pieceShare;
+				// distributePieceShare(Piece(i), pieceShare);
 			}
 		}
 		return newItemId;
@@ -175,7 +176,8 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 			PieceDetails memory pieceType = pieceDetails[Piece(i)];
 			if (idStacked[Piece(i)].length > 0) {
 				uint256 pieceShare = (holdersTax * pieceType.percentage);
-				distributePieceShare(Piece(i), pieceShare);
+				cagnotte[pieceType] += pieceShare;
+				// distributePieceShare(Piece(i), pieceShare);
 			}
 		}
 		_burn(tokenId);
