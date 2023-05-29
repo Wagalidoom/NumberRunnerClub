@@ -141,12 +141,11 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 
 		// Add the transaction fee to the piece's balance
 		for (uint8 i = 0; i < 6; i++) {
-			PieceDetails memory piece = pieceDetails[Piece(i)];
+			Piece piece = Piece(i);
 			if (idStacked[Piece(i)].length > 0) {
-				uint256 pieceShare = (100000000000000 * piece.percentage);
-				cagnotte[pieceType] += pieceShare;
-				if (totalStacked > 0) {
-					totalSharePerToken[_pieceType][epoch] = totalSharePerToken[_pieceType][epoch - 1] + pieceShare / totalStaked[_pieceType];
+				uint256 pieceShare = (100000000000000 * pieceDetails[piece].percentage);
+				if (totalStaked[piece] > 0) {
+					totalSharePerToken[piece][epoch] = totalSharePerToken[piece][epoch - 1] + pieceShare / totalStaked[piece];
 				}
 				updateEpoch();
 			}
@@ -189,12 +188,11 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		prizePool += taxAmount / 2;
 
 		for (uint8 i = 0; i < 6; i++) {
-			PieceDetails memory pieceType = pieceDetails[Piece(i)];
+			Piece _piece = Piece(i);
 				if (idStacked[Piece(i)].length > 0) {
-					uint256 pieceShare = (holdersTax * pieceType.percentage);
-					cagnotte[pieceType] += pieceShare;
-					if (totalStacked > 0) {
-						totalSharePerToken[_pieceType][epoch] = totalSharePerToken[_pieceType][epoch - 1] + pieceShare / totalStaked[_pieceType];
+					uint256 pieceShare = (holdersTax * pieceDetails[_piece].percentage);
+					if (totalStaked[_piece] > 0) {
+						totalSharePerToken[_piece][epoch] = totalSharePerToken[_piece][epoch - 1] + pieceShare / totalStaked[_piece];
 					}
 					updateEpoch();
 				}
@@ -251,9 +249,9 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		require(hasValidClub, "Doesn't have a valid club name");
 		idToIndex[_piece][tokenId] = idStacked[_piece].length;
 		idStacked[_piece].push(tokenId);
-		totalStaked[pieceType] += 1;
-		userStaked[msg.sender][pieceType] += 1;
-		userSharePerToken[msg.sender][pieceType] = totalSharePerToken[pieceType][epoch];
+		totalStaked[_piece] += 1;
+		userStaked[msg.sender][_piece] += 1;
+		userSharePerToken[msg.sender][_piece] = totalSharePerToken[_piece][epoch];
 		updateEpoch();
 
 		if (idStacked[_piece].length == 1) {
@@ -304,9 +302,8 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 
 		// distribute rewards
 		uint256 userReward = (totalSharePerToken[pieceType][epoch] - userSharePerToken[msg.sender][pieceType]) * userStaked[msg.sender][pieceType];
-		cagnotte[pieceType] -= userReward;
 		// transfer reward to user
-		safeTransfer(msg.sender, userReward);
+		_safeTransfer(address(this), msg.sender, userReward, "");
 		// update user and total stake count
 		totalStaked[pieceType] -= 1;
 		userStaked[msg.sender][pieceType] -= 1;
