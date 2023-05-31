@@ -86,6 +86,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	mapping(address => uint256) public userColor; // Mapping of user address to chosen color
 	mapping(address => uint256) private burnedCount; // Mapping of user address to counter of nft burned
 	mapping(address => uint256) private burnedCounterCount; // Mapping of user address to counter of nft from the opponent color burned
+	mapping(address => uint256[]) public userOwnedNFTs; // Mapping of user address to his owned nft
 	mapping(address => uint256[]) public userStackedNFTs; // Mapping of user address to his nft stacked in the contract
 	mapping(uint256 => bool) public isStaked; // Mapping of nft stacked in the contract
 	mapping(uint256 => Proposal) public proposals; // Mapping of nft stacked in the contract
@@ -141,6 +142,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		_mint(msg.sender, newItemId);
 		_setTokenURI(newItemId, "");
 		// collection.push(_piece);
+		userOwnedNFTs[msg.sender].push(newItemId);
 		pieceDetails[_pieceType].totalMinted++;
 		userColor[msg.sender] == 1 ? pieceDetails[_pieceType].blackMinted++ : pieceDetails[_pieceType].whiteMinted++;
 		totalMinted++;
@@ -179,6 +181,9 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		tokenBalance[tokenId] = 0;
 		payable(msg.sender).transfer(balance - taxAmount);
 		safeTransferFrom(_msgSender(), buyer, tokenId);
+		uint256 indexNFT = findIndexOfOwnedNFT(msg.sender, tokenId);
+		userOwnedNFTs[msg.sender][indexNFT] = userOwnedNFTs[msg.sender][userOwnedNFTs[msg.sender].length - 1];
+		userOwnedNFTs[msg.sender].pop();
 	}
 
 	function burnNFT(uint256 tokenId) public {
@@ -217,6 +222,9 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 				}
 			}
 		}
+		uint256 indexNFT = findIndexOfOwnedNFT(msg.sender, tokenId);
+		userOwnedNFTs[msg.sender][indexNFT] = userOwnedNFTs[msg.sender][userOwnedNFTs[msg.sender].length - 1];
+		userOwnedNFTs[msg.sender].pop();
 		currentSupply--;
 		tokenBalance[tokenId] = 0;
 		payable(msg.sender).transfer(balance - taxAmount);
@@ -297,7 +305,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		idStacked[_pieceType].pop();
 		idToIndex[_pieceType][lastId] = index;
 		delete idToIndex[_pieceType][tokenId];
-		uint256 indexNFT = findIndexOfNFT(msg.sender, tokenId);
+		uint256 indexNFT = findIndexOfStackedNFT(msg.sender, tokenId);
 		userStackedNFTs[msg.sender][indexNFT] = userStackedNFTs[msg.sender][userStackedNFTs[msg.sender].length - 1];
 		userStackedNFTs[msg.sender].pop();
 		isStaked[tokenId] = false;
@@ -363,7 +371,16 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		userColor[msg.sender] = _color;
 	}
 
-	function findIndexOfNFT(address user, uint256 tokenId) private view returns (uint256) {
+	function findIndexOfStackedNFT(address user, uint256 tokenId) private view returns (uint256) {
+		for (uint256 i = 0; i < userStackedNFTs[user].length; i++) {
+			if (userStackedNFTs[user][i] == tokenId) {
+				return i;
+			}
+		}
+		revert("NFT not found");
+	}
+
+	function findIndexOfOwnedNFT(address user, uint256 tokenId) private view returns (uint256) {
 		for (uint256 i = 0; i < userStackedNFTs[user].length; i++) {
 			if (userStackedNFTs[user][i] == tokenId) {
 				return i;
@@ -549,6 +566,10 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 
 	function updateEpoch() public onlyOwner {
 		epoch += 1;
+	}
+
+	function getUserOwnedNFTs(address user) public view returns(uint256[] memory){
+		return userOwnedNFTs[user];
 	}
 
 	// a terminer
