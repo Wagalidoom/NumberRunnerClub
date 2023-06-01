@@ -72,16 +72,12 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 
 	// La somme totale de tous les sharePerTokenAtEpoch pour chaque type de pièce
 	uint256[6][] totalSharePerToken;
-	// mapping(Piece => mapping(uint256 => uint256)) totalSharePerToken;
 	// Le sharePerToken de l'utilisateur à l'epoch où il a stacké son dernier token
-	// mapping(address => mapping(Piece => uint256)) userSharePerToken;
-	mapping(address => mapping(uint8 => uint256)) userSharePerToken;
+	mapping(bytes32 => mapping(uint8 => uint256)) userSharePerToken;
 	// Le nombre total de tokens stakés pour chaque type de pièce
 	uint256[8] totalStaked;
-	// mapping(Piece => uint256) totalStaked;
 	// Le nombre de tokens que chaque utilisateur a staké pour chaque type de pièce
-	// mapping(address => mapping(Piece => uint256)) userStaked;
-	mapping(address => mapping(uint8 => uint256)) userStaked;
+	mapping(bytes32 => mapping(uint8 => uint256)) userStaked;
 
 	mapping(address => uint8) public userColor; // Mapping of user address to chosen color
 	mapping(address => uint256) private burnedCount; // Mapping of user address to counter of nft burned
@@ -168,12 +164,16 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		uint256 balance = tokenBalance[tokenId];
 		uint256 holdersTax = taxAmount / 2;
 		prizePool += taxAmount / 2;
+
+		// Mettre à jour les rewards 
 		for (uint8 i = 0; i < 6; i++) {
-			// PieceDetails memory pieceType = pieceDetails[Piece(i)];
-			// if (pieceType.currentSupply > 0) {
-			//     uint256 pieceShare = (taxAmount * pieceType.percentage);
-			//     pieceBalance[Piece(i)] += pieceShare;
-			// }
+			if (idStacked[i].length > 0) {
+				uint256 pieceShare = (holdersTax * pieceDetails[i].percentage);
+				if (totalStaked[i] > 0) {
+					totalSharePerToken[i][epoch] = totalSharePerToken[i][epoch - 1] + pieceShare / totalStaked[i];
+				}
+				updateEpoch();
+			}
 		}
 
 		tokenBalance[tokenId] = 0;
@@ -195,7 +195,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		// TODO revoir la redistribution pour gérer les arrondis
 		uint256 holdersTax = taxAmount / 2;
 		prizePool += taxAmount / 2;
-
+		// Mettre à jour les rewards 
 		for (uint8 i = 0; i < 6; i++) {
 			if (idStacked[i].length > 0) {
 				uint256 pieceShare = (holdersTax * pieceDetails[i].percentage);
@@ -260,8 +260,9 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		idToIndex[_pieceType][tokenId] = idStacked[_pieceType].length;
 		idStacked[_pieceType].push(tokenId);
 		totalStaked[_pieceType] += 1;
-		userStaked[msg.sender][_pieceType] += 1;
-		userSharePerToken[msg.sender][_pieceType] = totalSharePerToken[_pieceType][epoch];
+		// Marquer l'epoch de la personne qui stacke dans les cagnottes
+		userStaked[node][_pieceType] += 1;
+		userSharePerToken[node][_pieceType] = totalSharePerToken[_pieceType][epoch];
 		updateEpoch();
 
 		if (idStacked[_pieceType].length == 1) {
@@ -310,13 +311,13 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		nodeOfTokenId[tokenId] = 0x0;
 
 		// distribute rewards
-		uint256 userReward = (totalSharePerToken[_pieceType][epoch] - userSharePerToken[msg.sender][_pieceType]) * userStaked[msg.sender][_pieceType];
+		uint256 userReward = (totalSharePerToken[_pieceType][epoch] - userSharePerToken[node][_pieceType]) * userStaked[node][_pieceType];
 		// transfer reward to user
-		_safeTransfer(address(this), msg.sender, userReward, "");
+		_safeTransfer(address(this), msg.sender, userReward, ""); // To user or to node ?
 		// update user and total stake count
 		totalStaked[_pieceType] -= 1;
-		userStaked[msg.sender][_pieceType] -= 1;
-		userSharePerToken[msg.sender][_pieceType] = totalSharePerToken[_pieceType][epoch];
+		userStaked[node][_pieceType] -= 1;
+		userSharePerToken[node][_pieceType] = totalSharePerToken[_pieceType][epoch]; // par sureté mais redondant
 
 		// Remove the token ID for the ENS node
 		delete nodeOfTokenId[tokenId];
