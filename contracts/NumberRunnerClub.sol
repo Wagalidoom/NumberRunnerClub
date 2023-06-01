@@ -83,7 +83,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	// mapping(address => mapping(Piece => uint256)) userStaked;
 	mapping(address => mapping(uint8 => uint256)) userStaked;
 
-	mapping(address => uint256) public userColor; // Mapping of user address to chosen color
+	mapping(address => uint8) public userColor; // Mapping of user address to chosen color
 	mapping(address => uint256) private burnedCount; // Mapping of user address to counter of nft burned
 	mapping(address => uint256) private burnedCounterCount; // Mapping of user address to counter of nft from the opponent color burned
 	mapping(address => uint256[]) public userOwnedNFTs; // Mapping of user address to his owned nft
@@ -108,11 +108,9 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 
 	// TODO à qui redistribuer les frais de mint sur le premier mint et/ou quand il n'y a pas de nft stacké
 	function mint(uint8 _pieceType) public payable returns (uint256) {
-		require(msg.value >= 200000000000000000); // minting price fixed at 0.2 eth
+		require(msg.value >= 200000000000000000, "User must send at least 0.2 eth for minting a token");
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
-		// Piece _piece = Piece(_pieceType);
 		require(pieceDetails[_pieceType].totalMinted < pieceDetails[_pieceType].maxSupply, "Max supply for this piece type reached");
-		// require(_piece != Piece.King, "Cannot mint the king");
 		if (userColor[msg.sender] == 1) {
 			require(pieceDetails[_pieceType].blackMinted < pieceDetails[_pieceType].maxSupply / 2, "Max supply for black color reached");
 		} else {
@@ -365,7 +363,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	}
 
 	// Let user choose the white or black color
-	function chooseColor(uint256 _color) public {
+	function chooseColor(uint8 _color) public {
 		require(_color == 1 || _color == 2, "Invalid color");
 		require(userColor[msg.sender] == 0, "Color already chosen");
 		userColor[msg.sender] = _color;
@@ -570,6 +568,10 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 
 	function getUserOwnedNFTs(address user) public view returns(uint256[] memory){
 		return userOwnedNFTs[user];
+	}
+
+	function getUserColor(address user) public view returns(uint8){
+		return userColor[user];
 	}
 
 	// a terminer
