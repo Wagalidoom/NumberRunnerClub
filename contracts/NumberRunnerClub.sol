@@ -42,7 +42,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	uint256 public userStacked = 0;
 	uint256 public currentEpoch = 0;
 	// L'epoch actuel
-	uint256 public epoch;
+	uint256 public epoch = 0;
 	uint256[] kingHands;
 	bool isKingsHandSet = false;
 	uint256 public recentRequestId;
@@ -61,13 +61,13 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	uint256[6] private typeStacked; // a ameliorer pour recup direct le length de idStacked???
 
 	// La somme totale de tous les sharePerTokenAtEpoch pour chaque type de pièce
-	uint256[6][] totalSharePerToken;
+	uint256[][6] totalSharePerToken;
 	// mapping(Piece => mapping(uint256 => uint256)) totalSharePerToken;
 	// Le sharePerToken de l'utilisateur à l'epoch où il a stacké son dernier token
 	// mapping(address => mapping(Piece => uint256)) userSharePerToken;
 	mapping(address => mapping(uint8 => uint256)) userSharePerToken;
 	// Le nombre total de tokens stakés pour chaque type de pièce
-	uint256[8] totalStaked;
+	uint256[6] totalStaked;
 	// mapping(Piece => uint256) totalStaked;
 	// Le nombre de tokens que chaque utilisateur a staké pour chaque type de pièce
 	// mapping(address => mapping(Piece => uint256)) userStaked;
@@ -95,6 +95,11 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		ens = ENS(_ens);
 		textResolver = TextResolver(_resolver);
 		prizePool = 0;
+		for (uint8 i = 0; i < 6; i++) {
+			totalSharePerToken[i].push(0);
+		}
+		updateEpoch();
+		spawnKings();
 	}
 
 	// TODO à qui redistribuer les frais de mint sur le premier mint et/ou quand il n'y a pas de nft stacké
@@ -142,9 +147,9 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 			if (typeStacked[i] > 0) {
 				uint256 pieceShare = (100000000000000 * pieceDetails[i].percentage);
 				if (totalStaked[i] > 0) {
-					// totalSharePerToken[i][epoch] = totalSharePerToken[i][epoch - 1] + pieceShare / totalStaked[i];
+					totalSharePerToken[i][epoch] = totalSharePerToken[i][epoch - 1] + pieceShare / totalStaked[i];
 				}
-				// updateEpoch();
+				updateEpoch();
 			}
 		}
 		return newItemId;
@@ -254,8 +259,8 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		typeStacked[_pieceType] += 1;
 		totalStaked[_pieceType] += 1;
 		userStaked[msg.sender][_pieceType] += 1;
-		// userSharePerToken[msg.sender][_pieceType] = totalSharePerToken[_pieceType][epoch];
-		// updateEpoch();
+		userSharePerToken[msg.sender][_pieceType] = totalSharePerToken[_pieceType][epoch];
+		updateEpoch();
 
 		if (typeStacked[_pieceType] == 1) {
 			// If it's the first piece of this type
@@ -550,8 +555,39 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		payable(msg.sender).transfer(balance);
 	}
 
+	function spawnKings() public {
+		// Black king
+		_mint(address(this), 0);
+		_setTokenURI(0, "");
+		userOwnedNFTs[address(this)].push(0);
+		pieceDetails[0].totalMinted++;
+		pieceDetails[0].blackMinted++;
+		totalMinted++;
+		currentSupply++;
+		typeStacked[0] += 1;
+		totalStaked[0] += 1;
+		userStaked[address(this)][0] += 1;
+		isStacked[0] = true;
+
+		// White king
+		_mint(address(this), 1);
+		_setTokenURI(1, "");
+		userOwnedNFTs[address(this)].push(0);
+		pieceDetails[0].totalMinted++;
+		pieceDetails[0].whiteMinted++;
+		totalMinted++;
+		currentSupply++;
+		typeStacked[0] += 1;
+		totalStaked[0] += 1;
+		userStaked[address(this)][0] += 1;
+		isStacked[1] = true;
+	}
+
 	function updateEpoch() private {
 		epoch += 1;
+		for (uint8 i = 0; i < 6; i++) {
+			totalSharePerToken[i].push(totalSharePerToken[i][epoch-1]);
+		}
 	}
 
 	function getUserOwnedNFTs(address user) public view returns (uint256[] memory) {
@@ -565,6 +601,16 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	function getIsStacked(uint256 _id) public view returns (bool) {
 		return isStacked[_id];
 	}
+
+	function getTotalSharePerToken(uint i, uint j) public view returns (uint256) {
+    	return totalSharePerToken[i][j];
+	}
+
+	function getTotalSharePerTokenSize() public view returns (uint, uint) {
+    	return (totalSharePerToken.length, totalSharePerToken[0].length);
+	}	
+
+
 
 	// a terminer
 	// function auctionEnded(uint256 _price, address _newOwner, uint256 _tokenId) public {
