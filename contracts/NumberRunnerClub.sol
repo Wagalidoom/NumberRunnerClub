@@ -12,14 +12,6 @@ import "./INumberRunnerClub.sol";
 
 // TODO add system of burn/sell before claiming personal prize
 contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable, ReentrancyGuard {
-	enum Piece {
-		King,
-		Queen,
-		Rook,
-		Knight,
-		Bishop,
-		Pawn
-	}
 
 	struct PieceDetails {
 		uint256 maxSupply;
@@ -44,7 +36,6 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		mapping(uint256 => bool) voted;
 	}
 
-	Piece[] public collection;
 	uint256 public constant MAX_NFT_SUPPLY = 10000;
 	uint256 public totalMinted = 0;
 	uint256 public currentSupply = 0;
@@ -62,31 +53,35 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	ENS ens;
 	TextResolver textResolver;
 	mapping(uint256 => bytes32) public nodeOfTokenId; // Mapping of tokenId to the corresponding ENS name
-	// mapping(Piece => PieceDetails) public pieceDetails; // Mapping of Chess Piece to the corresponding Details
 	PieceDetails[6] pieceDetails;
 	mapping(uint256 => uint256) private tokenBalance; // Mapping of tokenId to the matching balance
 	// uint256[6][][] private idStacked;
 	mapping(uint8 => uint256[]) private idStacked; // Mapping of Piece to the tokenIds of this piece type stacked in contract
-	uint256[6][] private idToIndex;
-	// mapping(Piece => mapping(uint256 => uint256)) private idToIndex;
+	uint256[6][] private idToIndex; // mapping(Piece => mapping(uint256 => uint256)) private idToIndex;
+	uint256[6] private typeStacked; // a ameliorer pour recup direct le length de idStacked???
 
 	// La somme totale de tous les sharePerTokenAtEpoch pour chaque type de pièce
 	uint256[6][] totalSharePerToken;
+	// mapping(Piece => mapping(uint256 => uint256)) totalSharePerToken;
 	// Le sharePerToken de l'utilisateur à l'epoch où il a stacké son dernier token
-	mapping(bytes32 => mapping(uint8 => uint256)) userSharePerToken;
+	// mapping(address => mapping(Piece => uint256)) userSharePerToken;
+	mapping(address => mapping(uint8 => uint256)) userSharePerToken;
 	// Le nombre total de tokens stakés pour chaque type de pièce
 	uint256[8] totalStaked;
+	// mapping(Piece => uint256) totalStaked;
 	// Le nombre de tokens que chaque utilisateur a staké pour chaque type de pièce
-	mapping(bytes32 => mapping(uint8 => uint256)) userStaked;
+	// mapping(address => mapping(Piece => uint256)) userStaked;
+	mapping(address => mapping(uint8 => uint256)) userStaked;
 
 	mapping(address => uint8) public userColor; // Mapping of user address to chosen color
 	mapping(address => uint256) private burnedCount; // Mapping of user address to counter of nft burned
 	mapping(address => uint256) private burnedCounterCount; // Mapping of user address to counter of nft from the opponent color burned
 	mapping(address => uint256[]) public userOwnedNFTs; // Mapping of user address to his owned nft
 	mapping(address => uint256[]) public userStackedNFTs; // Mapping of user address to his nft stacked in the contract
-	mapping(uint256 => bool) public isStaked; // Mapping of nft stacked in the contract
+	mapping(uint256 => bool) public isStacked; // Mapping of nft stacked in the contract
 	mapping(uint256 => Proposal) public proposals; // Mapping of nft stacked in the contract
 	mapping(uint256 => bool) public hasClaimedGeneral;
+	mapping(bytes32 => bool) public isNodeUsed;
 
 	event KingHandBurned(uint256 tokenId);
 
@@ -144,12 +139,12 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 
 		// Add the transaction fee to the piece's balance
 		for (uint8 i = 0; i < 6; i++) {
-			if (idStacked[i].length > 0) {
+			if (typeStacked[i] > 0) {
 				uint256 pieceShare = (100000000000000 * pieceDetails[i].percentage);
 				if (totalStaked[i] > 0) {
-					totalSharePerToken[i][epoch] = totalSharePerToken[i][epoch - 1] + pieceShare / totalStaked[i];
+					// totalSharePerToken[i][epoch] = totalSharePerToken[i][epoch - 1] + pieceShare / totalStaked[i];
 				}
-				updateEpoch();
+				// updateEpoch();
 			}
 		}
 		return newItemId;
@@ -164,16 +159,12 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		uint256 balance = tokenBalance[tokenId];
 		uint256 holdersTax = taxAmount / 2;
 		prizePool += taxAmount / 2;
-
-		// Mettre à jour les rewards 
 		for (uint8 i = 0; i < 6; i++) {
-			if (idStacked[i].length > 0) {
-				uint256 pieceShare = (holdersTax * pieceDetails[i].percentage);
-				if (totalStaked[i] > 0) {
-					totalSharePerToken[i][epoch] = totalSharePerToken[i][epoch - 1] + pieceShare / totalStaked[i];
-				}
-				updateEpoch();
-			}
+			// PieceDetails memory pieceType = pieceDetails[Piece(i)];
+			// if (pieceType.currentSupply > 0) {
+			//     uint256 pieceShare = (taxAmount * pieceType.percentage);
+			//     pieceBalance[Piece(i)] += pieceShare;
+			// }
 		}
 
 		tokenBalance[tokenId] = 0;
@@ -184,10 +175,13 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		userOwnedNFTs[msg.sender].pop();
 	}
 
-	function burnNFT(uint256 tokenId) public {
-		require(totalMinted == MAX_NFT_SUPPLY && currentSupply > 999, "Collection ended");
+	function burn(uint256 tokenId) public {
+		// faille si tout est mint mais le current supply est inferieur a 999 restants ?
+		if (totalMinted == MAX_NFT_SUPPLY) {
+			require(currentSupply > 999, "Collection ended");
+		}
 		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: burn caller is not owner nor approved");
-		require(isStaked[tokenId] == false, "Cannot burn a stacked token");
+		require(isStacked[tokenId] == false, "Cannot burn a stacked token");
 		uint8 _pieceType = getPieceType(tokenId);
 		require(_pieceType != 0, "Cannot burn the King");
 		uint256 taxAmount = (tokenBalance[tokenId] * pieceDetails[_pieceType].burnTax) / 100;
@@ -195,9 +189,9 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		// TODO revoir la redistribution pour gérer les arrondis
 		uint256 holdersTax = taxAmount / 2;
 		prizePool += taxAmount / 2;
-		// Mettre à jour les rewards 
+
 		for (uint8 i = 0; i < 6; i++) {
-			if (idStacked[i].length > 0) {
+			if (typeStacked[i] > 0) {
 				uint256 pieceShare = (holdersTax * pieceDetails[i].percentage);
 				if (totalStaked[i] > 0) {
 					totalSharePerToken[i][epoch] = totalSharePerToken[i][epoch - 1] + pieceShare / totalStaked[i];
@@ -229,23 +223,23 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	}
 
 	// comment verifier que le token stake provient bien de la collection ?
-	function _stake(bytes32 node, uint256 tokenId) public {
+	// verifier que l'ens name est utilise pour stacker un unique nft
+	// comment recuper les nfts qui sont stacke si ils ne sont plus own par l'utilisateur
+	function stack(bytes32 node, uint256 tokenId) public {
 		// Ensure the function caller owns the ENS node
-		require(!isStaked[tokenId], "Token is already stacked");
-		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
-
+		// require(ens.owner(node) == msg.sender, "Not owner of ENS node");
+		require(!isStacked[tokenId], "Token is already stacked");
 		// Ensure the function caller owns the NFT
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
-
 		// Ensure the NFT is approved for this contract to manage
 		require(getApproved(tokenId) == address(this), "NFT not approved for staking");
 		require(isColorValid(tokenId), "User cannot stack this color");
 		uint8 _pieceType = getPieceType(tokenId);
 		bool hasValidClub = false;
-		for (uint i = 7; i < pieceDetails[_pieceType].clubRequirement; i++) {
+		for (uint i = 7; i < 10; i++) {
 			if (pieceDetails[_pieceType].palindromeClubRequirement) {
 				if (i == pieceDetails[_pieceType].clubRequirement) {
-					if (isClub(node, i) && isPalindrome(node)) {
+					if (isClub(node, i) && isPalindrome(node, i)) {
 						hasValidClub = true;
 						break;
 					}
@@ -257,90 +251,83 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 			}
 		}
 		require(hasValidClub, "Doesn't have a valid club name");
-		idToIndex[_pieceType][tokenId] = idStacked[_pieceType].length;
-		idStacked[_pieceType].push(tokenId);
+		typeStacked[_pieceType] += 1;
 		totalStaked[_pieceType] += 1;
-		// Marquer l'epoch de la personne qui stacke dans les cagnottes
-		userStaked[node][_pieceType] += 1;
-		userSharePerToken[node][_pieceType] = totalSharePerToken[_pieceType][epoch];
-		updateEpoch();
+		userStaked[msg.sender][_pieceType] += 1;
+		// userSharePerToken[msg.sender][_pieceType] = totalSharePerToken[_pieceType][epoch];
+		// updateEpoch();
 
-		if (idStacked[_pieceType].length == 1) {
+		if (typeStacked[_pieceType] == 1) {
 			// If it's the first piece of this type
 			if (_pieceType != 5 && _pieceType != 0) {
 				pieceDetails[5].percentage -= pieceDetails[_pieceType].percentage;
-
+				
 				// TODO gérer le cas ou aucun pion ou aucun roi n'est stacké
 			}
 		}
 
 		// Transfer the NFT to this contract
-		safeTransferFrom(msg.sender, address(this), tokenId);
-		isStaked[tokenId] = true;
-		userStackedNFTs[msg.sender].push(tokenId);
+		transferFrom(msg.sender, address(this), tokenId); //remplacer par safeTransferFrom?
+		isStacked[tokenId] = true;
+		isNodeUsed[node] = true;
 		// Set the token ID for the ENS node
 		nodeOfTokenId[tokenId] = node;
 
 		// Set the NFT as the avatar for the ENS node
-		textResolver.setText(node, "avatar", string(abi.encodePacked("eip721:", address(this), "/", tokenId)));
+		// textResolver.setText(node, "avatar", string(abi.encodePacked("eip721:", address(this), "/", tokenId)));
 	}
 
-	function _unstake(bytes32 node, uint256 tokenId) public {
+	function unstack(uint256 tokenId) public {
 		// Ensure the function caller owns the ENS node
-		require(isStaked[tokenId], "Token is not stacked yet");
-		require(nodeOfTokenId[tokenId] == node, "ENS name must match the token stacked");
-		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
-
-		// Ensure the NFT is managed by this contract
+		require(isStacked[tokenId], "Token is not stacked yet");
+		// Ensure the NFT is managed by this contract, doublon?
 		require(ownerOf(tokenId) == address(this), "NFT not staked");
+		bytes32 node = nodeOfTokenId[tokenId];
+		uint8 _pieceType = getPieceType(tokenId);
+		// require(ens.owner(node) == msg.sender, "Not owner of ENS node");
+
+		typeStacked[_pieceType] -= 1;
+		totalStaked[_pieceType] -= 1;
+		userStaked[msg.sender][_pieceType] -= 1;
 
 		// Transfer the NFT back to the function caller
-		safeTransferFrom(address(this), msg.sender, tokenId);
-		uint8 _pieceType = getPieceType(tokenId);
-		uint256 index = idToIndex[_pieceType][tokenId];
-		uint256 lastId = idStacked[_pieceType][idStacked[_pieceType].length - 1];
-
-		idStacked[_pieceType][index] = lastId;
-		idStacked[_pieceType].pop();
-		idToIndex[_pieceType][lastId] = index;
-		delete idToIndex[_pieceType][tokenId];
-		uint256 indexNFT = findIndexOfStackedNFT(msg.sender, tokenId);
-		userStackedNFTs[msg.sender][indexNFT] = userStackedNFTs[msg.sender][userStackedNFTs[msg.sender].length - 1];
-		userStackedNFTs[msg.sender].pop();
-		isStaked[tokenId] = false;
-		nodeOfTokenId[tokenId] = 0x0;
+		ERC721(address(this)).safeTransferFrom(address(this), msg.sender, tokenId);
+		
+		isStacked[tokenId] = false;
+		isNodeUsed[node] = false;
+		nodeOfTokenId[tokenId] = 0x0;	
 
 		// distribute rewards
-		uint256 userReward = (totalSharePerToken[_pieceType][epoch] - userSharePerToken[node][_pieceType]) * userStaked[node][_pieceType];
+		// uint256 userReward = (totalSharePerToken[_pieceType][epoch] - userSharePerToken[msg.sender][_pieceType]) * userStaked[msg.sender][_pieceType];
 		// transfer reward to user
-		_safeTransfer(address(this), msg.sender, userReward, ""); // To user or to node ?
+		// _safeTransfer(address(this), msg.sender, userReward, "");
 		// update user and total stake count
-		totalStaked[_pieceType] -= 1;
-		userStaked[node][_pieceType] -= 1;
-		userSharePerToken[node][_pieceType] = totalSharePerToken[_pieceType][epoch]; // par sureté mais redondant
-
-		// Remove the token ID for the ENS node
-		delete nodeOfTokenId[tokenId];
+		// userSharePerToken[msg.sender][_pieceType] = totalSharePerToken[_pieceType][epoch];
 
 		// Remove the NFT as the avatar for the ENS node
-		textResolver.setText(node, "avatar", "");
+		// textResolver.setText(node, "avatar", "");
 	}
 
 	function isColorValid(uint256 tokenId) private view returns (bool) {
 		return (tokenId % 2 == 0 && userColor[msg.sender] == 1) || (tokenId % 2 != 0 && userColor[msg.sender] == 2);
 	}
 
-	function isPalindrome(bytes32 name) public pure returns (bool) {
-		bytes32 b = name;
+	function isPalindrome(bytes32 name, uint length) public pure returns (bool) {
 		uint start = 0;
-		uint end = b.length - 4;
+		uint end = length - 5; // Exclude ".eth"
+
 		while (start < end) {
-			if (b[start] < 0x30 || b[start] > 0x39) return false; // ASCII values for '0' and '9'
-			if (b[end] < 0x30 || b[end] > 0x39) return false; // ASCII values for '0' and '9'
-			if (b[start] != b[end]) return false; // Checking palindrome
+			bytes1 startByte = name[start];
+			bytes1 endByte = name[end];
+
+			if (startByte < bytes1(0x30) || startByte > bytes1(0x39)) return false; // ASCII values for '0' and '9'
+			if (endByte < bytes1(0x30) || endByte > bytes1(0x39)) return false; // ASCII values for '0' and '9'
+			if (startByte != endByte) return false; // Checking palindrome
+
 			start++;
 			end--;
 		}
+
 		return true;
 	}
 
@@ -380,8 +367,8 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	}
 
 	function findIndexOfOwnedNFT(address user, uint256 tokenId) private view returns (uint256) {
-		for (uint256 i = 0; i < userStackedNFTs[user].length; i++) {
-			if (userStackedNFTs[user][i] == tokenId) {
+		for (uint256 i = 0; i < userOwnedNFTs[user].length; i++) {
+			if (userOwnedNFTs[user][i] == tokenId) {
 				return i;
 			}
 		}
@@ -389,21 +376,21 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	}
 
 	function isClub(bytes32 name, uint length) public pure returns (bool) {
-		bytes32 b = name;
-		if (b.length != length) return false;
-
-		// Check if the first part is a number
-		for (uint i = 0; i < b.length - 4; i++) {
-			if (b[i] < 0x30 || b[i] > 0x39) return false;
-		}
+		if (length > 32 || length < 5) return false;
 
 		// Check if the last part is ".eth"
 		if (
-			b[b.length - 4] != 0x2e || // ASCII value for '.'
-			b[b.length - 3] != 0x65 || // ASCII value for 'e'
-			b[b.length - 2] != 0x74 || // ASCII value for 't'
-			b[b.length - 1] != 0x68 // ASCII value for 'h'
+			name[length - 4] != bytes1(0x2e) || // ASCII value for '.'
+			name[length - 3] != bytes1(0x65) || // ASCII value for 'e'
+			name[length - 2] != bytes1(0x74) || // ASCII value for 't'
+			name[length - 1] != bytes1(0x68) // ASCII value for 'h'
 		) return false;
+
+		// Check if the first part is a number
+		for (uint i = 0; i < length - 4; i++) {
+			bytes1 b = name[i];
+			if (b < bytes1(0x30) || b > bytes1(0x39)) return false;
+		}
 
 		return true;
 	}
@@ -422,7 +409,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		require(msg.value > 200000000000000000); // reveal price fixed at 0.2 eth
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		require(getPieceType(tokenId) == 5, "Token must be a Pawn");
-		// require(isStaked[tokenId] == false, "Token must be unstack");
+		// require(isStacked[tokenId] == false, "Token must be unstack");
 		bool isKingsHand = false;
 		for (uint i = 0; i < 10; i++) {
 			if (tokenId == kingHands[i]) {
@@ -545,7 +532,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	// how long to claim prize pool before ending
 	function claimPrizePool(uint256 tokenId) public {
 		require(totalMinted == MAX_NFT_SUPPLY && currentSupply <= 999, "Collection not ended yet");
-		require(isClub(nodeOfTokenId[tokenId], 7) || (isClub(nodeOfTokenId[tokenId], 8) && isPalindrome(nodeOfTokenId[tokenId])), "Only 999Club and 10kClub Palindrome can claim Prize");
+		require(isClub(nodeOfTokenId[tokenId], 7) || (isClub(nodeOfTokenId[tokenId], 8) && isPalindrome(nodeOfTokenId[tokenId], 8)), "Only 999Club and 10kClub Palindrome can claim Prize");
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		require(hasClaimedGeneral[tokenId] == false, "Prize already claimed on this nft");
 		// TODO echelle des pourcentages dans les calculs
@@ -563,16 +550,20 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		payable(msg.sender).transfer(balance);
 	}
 
-	function updateEpoch() public onlyOwner {
+	function updateEpoch() private {
 		epoch += 1;
 	}
 
-	function getUserOwnedNFTs(address user) public view returns(uint256[] memory){
+	function getUserOwnedNFTs(address user) public view returns (uint256[] memory) {
 		return userOwnedNFTs[user];
 	}
 
-	function getUserColor(address user) public view returns(uint8){
+	function getUserColor(address user) public view returns (uint8) {
 		return userColor[user];
+	}
+
+	function getIsStacked(uint256 _id) public view returns (bool) {
+		return isStacked[_id];
 	}
 
 	// a terminer
