@@ -59,13 +59,9 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	uint256[6] private typeStacked; // a ameliorer pour recup direct le length de idStacked???
 
 	// La somme totale de tous les sharePerTokenAtEpoch pour chaque type de pièce
-	uint256[][6] totalSharePerToken;
+	uint256[][6] shareTypeAccumulator;
 	// Le sharePerToken de l'utilisateur à l'epoch où il a stacké son dernier token
-	mapping(address => mapping(uint8 => uint256)) userSharePerToken;
-	// Le nombre total de tokens stakés pour chaque type de pièce
-	uint256[6] totalStaked;
-	// Le nombre de tokens que chaque utilisateur a staké pour chaque type de pièce
-	mapping(address => mapping(uint8 => uint256)) userStaked;
+	mapping(uint256 => uint256) nftShares;
 
 	mapping(address => uint8) public userColor; // Mapping of user address to chosen color
 	mapping(address => uint256) private burnedCount; // Mapping of user address to counter of nft burned
@@ -75,6 +71,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	mapping(uint256 => Proposal) public proposals; // Mapping of nft stacked in the contract
 	mapping(uint256 => bool) public hasClaimedGeneral;
 	mapping(bytes32 => bool) public isNodeUsed;
+	mapping(uint256 => bool) public forSale;
 
 	event KingHandBurned(uint256 tokenId);
 
@@ -89,7 +86,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		textResolver = TextResolver(_resolver);
 		prizePool = 0;
 		for (uint8 i = 0; i < 6; i++) {
-			totalSharePerToken[i].push(0);
+			shareTypeAccumulator[i].push(0);
 		}
 		updateEpoch();
 		spawnKings();
@@ -146,8 +143,8 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		for (uint8 i = 0; i < 6; i++) {
 			if (typeStacked[i] > 0) {
 				uint256 pieceShare = (100000000000000 * pieceDetails[i].percentage);
-				if (totalStaked[i] > 0) {
-					totalSharePerToken[i][epoch] = totalSharePerToken[i][epoch - 1] + pieceShare / totalStaked[i];
+				if (typeStacked[i] > 0) {
+					shareTypeAccumulator[i][epoch] = shareTypeAccumulator[i][epoch - 1] + pieceShare / typeStacked[i];
 				}
 				updateEpoch();
 			}
@@ -178,8 +175,8 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		for (uint8 i = 0; i < 6; i++) {
 			if (typeStacked[i] > 0) {
 				uint256 pieceShare = (holdersTax * pieceDetails[i].percentage);
-				if (totalStaked[i] > 0) {
-					totalSharePerToken[i][epoch] = totalSharePerToken[i][epoch - 1] + pieceShare / totalStaked[i];
+				if (typeStacked[i] > 0) {
+					shareTypeAccumulator[i][epoch] = shareTypeAccumulator[i][epoch - 1] + pieceShare / typeStacked[i];
 				}
 				updateEpoch();
 			}
@@ -237,16 +234,13 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		}
 		require(hasValidClub, "Doesn't have a valid club name");
 		typeStacked[_pieceType] += 1;
-		totalStaked[_pieceType] += 1;
-		userStaked[msg.sender][_pieceType] += 1;
-		userSharePerToken[msg.sender][_pieceType] = totalSharePerToken[_pieceType][epoch];
+		nftShares[tokenId] = shareTypeAccumulator[_pieceType][epoch];
 		updateEpoch();
 
 		if (typeStacked[_pieceType] == 1) {
 			// If it's the first piece of this type
 			if (_pieceType != 5 && _pieceType != 0) {
 				pieceDetails[5].percentage -= pieceDetails[_pieceType].percentage;
-
 				// TODO gérer le cas ou aucun pion ou aucun roi n'est stacké
 			}
 		}
@@ -272,8 +266,6 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		// require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 
 		typeStacked[_pieceType] -= 1;
-		totalStaked[_pieceType] -= 1;
-		userStaked[msg.sender][_pieceType] -= 1;
 
 		// Transfer the NFT back to the function caller
 		ERC721(address(this)).safeTransferFrom(address(this), msg.sender, tokenId);
@@ -283,31 +275,41 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		nodeOfTokenId[tokenId] = 0x0;
 
 		// distribute rewards
-		// uint256 userReward = (totalSharePerToken[_pieceType][epoch] - userSharePerToken[msg.sender][_pieceType]) * userStaked[msg.sender][_pieceType];
+		uint256 reward = (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
 		// transfer reward to user
-		// _safeTransfer(address(this), msg.sender, userReward, "");
+		_safeTransfer(address(this), msg.sender, reward, "");
 		// update user and total stake count
-		// userSharePerToken[msg.sender][_pieceType] = totalSharePerToken[_pieceType][epoch];
+		nftShares[tokenId] = shareTypeAccumulator[_pieceType][epoch];
 
 		// Remove the NFT as the avatar for the ENS node
-		// textResolver.setText(node, "avatar", "");
+		textResolver.setText(node, "avatar", "");
 	}
 
-	function sellNFT(uint256 tokenId, address buyer) public {
+	function listNFT(uint256 tokenId) public {
 		if (totalMinted == MAX_NFT_SUPPLY) {
 			require(currentSupply > 999, "Collection ended");
 		}
 		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: transfer caller is not owner nor approved");
+	}
+
+	function buyNFT(uint256 tokenId, address buyer) public {
+		if (totalMinted == MAX_NFT_SUPPLY) {
+			require(currentSupply > 999, "Collection ended");
+		}
+		require(isForSale(tokenId), "NFT is not for sale");
+
 		uint256 taxAmount = (tokenBalance[tokenId] * 16) / 100;
 		uint256 balance = tokenBalance[tokenId];
-		uint256 holdersTax = taxAmount / 2;
 		prizePool += taxAmount / 2;
+		uint256 holdersTax = taxAmount / 2;
 		for (uint8 i = 0; i < 6; i++) {
-			// PieceDetails memory pieceType = pieceDetails[Piece(i)];
-			// if (pieceType.currentSupply > 0) {
-			//     uint256 pieceShare = (taxAmount * pieceType.percentage);
-			//     pieceBalance[Piece(i)] += pieceShare;
-			// }
+			if (typeStacked[i] > 0) {
+				uint256 pieceShare = (holdersTax * pieceDetails[i].percentage);
+				if (typeStacked[i] > 0) {
+					shareTypeAccumulator[i][epoch] = shareTypeAccumulator[i][epoch - 1] + pieceShare / typeStacked[i];
+				}
+				updateEpoch();
+			}
 		}
 
 		tokenBalance[tokenId] = 0;
@@ -552,8 +554,6 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		totalMinted++;
 		currentSupply++;
 		typeStacked[0] += 1;
-		totalStaked[0] += 1;
-		userStaked[address(this)][0] += 1;
 		isStacked[0] = true;
 
 		// White king
@@ -565,17 +565,27 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		totalMinted++;
 		currentSupply++;
 		typeStacked[0] += 1;
-		totalStaked[0] += 1;
-		userStaked[address(this)][0] += 1;
 		isStacked[1] = true;
 	}
 
 	function updateEpoch() private {
 		epoch += 1;
 		for (uint8 i = 0; i < 6; i++) {
-			totalSharePerToken[i].push(totalSharePerToken[i][epoch - 1]);
+			shareTypeAccumulator[i].push(shareTypeAccumulator[i][epoch - 1]);
 		}
 	}
+
+	function listForSale(uint256 tokenId) internal {
+        forSale[tokenId] = true;
+    }
+
+    function removeFromSale(uint256 tokenId) internal {
+        forSale[tokenId] = false;
+    }
+
+	function isForSale(uint256 tokenId) public view returns(bool) {
+        return forSale[tokenId];
+    }
 
 	function getUserOwnedNFTs(address user) public view returns (uint256[] memory) {
 		return userOwnedNFTs[user];
@@ -589,12 +599,12 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		return isStacked[_id];
 	}
 
-	function getTotalSharePerToken(uint i, uint j) public view returns (uint256) {
-		return totalSharePerToken[i][j];
+	function getShareTypeAccumulator(uint i, uint j) public view returns (uint256) {
+		return shareTypeAccumulator[i][j];
 	}
 
-	function getTotalSharePerTokenSize() public view returns (uint, uint) {
-		return (totalSharePerToken.length, totalSharePerToken[0].length);
+	function getShareTypeAccumulatorSize() public view returns (uint, uint) {
+		return (shareTypeAccumulator.length, shareTypeAccumulator[0].length);
 	}
 
 	// a terminer
