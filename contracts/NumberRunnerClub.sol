@@ -53,7 +53,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	TextResolver textResolver;
 	mapping(uint256 => bytes32) public nodeOfTokenId; // Mapping of tokenId to the corresponding ENS name
 	PieceDetails[6] pieceDetails;
-	mapping(uint256 => uint256) private tokenBalance; // Mapping of tokenId to the matching balance
+	
 	mapping(uint8 => uint256[]) private idStacked; // Mapping of Piece to the tokenIds of this piece type stacked in contract
 	uint256[6][] private idToIndex; // mapping(Piece => mapping(uint256 => uint256)) private idToIndex;
 	uint256[6] private typeStacked; // a ameliorer pour recup direct le length de idStacked???
@@ -289,17 +289,20 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		if (totalMinted == MAX_NFT_SUPPLY) {
 			require(currentSupply > 999, "Collection ended");
 		}
-		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: transfer caller is not owner nor approved");
+		require(_isApprovedOrOwner(msg.sender, tokenId), "ERC721: transfer caller is not owner nor approved");
+
 	}
 
-	function buyNFT(uint256 tokenId, address buyer) public {
+	function buyNFT(uint256 tokenId, address buyer, uint256 price) public {
 		if (totalMinted == MAX_NFT_SUPPLY) {
 			require(currentSupply > 999, "Collection ended");
 		}
 		require(isForSale(tokenId), "NFT is not for sale");
+		address seller = ownerOf(tokenId);
 
 		uint256 taxAmount = (tokenBalance[tokenId] * 16) / 100;
 		uint256 balance = tokenBalance[tokenId];
+
 		prizePool += taxAmount / 2;
 		uint256 holdersTax = taxAmount / 2;
 		for (uint8 i = 0; i < 6; i++) {
@@ -313,11 +316,11 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		}
 
 		tokenBalance[tokenId] = 0;
-		payable(msg.sender).transfer(balance - taxAmount);
-		safeTransferFrom(_msgSender(), buyer, tokenId);
+		payable(seller).transfer(balance - taxAmount);
+		safeTransferFrom(msg.sender, buyer, tokenId);
 		uint256 indexNFT = findIndexOfOwnedNFT(msg.sender, tokenId);
-		userOwnedNFTs[msg.sender][indexNFT] = userOwnedNFTs[msg.sender][userOwnedNFTs[msg.sender].length - 1];
-		userOwnedNFTs[msg.sender].pop();
+		userOwnedNFTs[seller][indexNFT] = userOwnedNFTs[seller][userOwnedNFTs[seller].length - 1];
+		userOwnedNFTs[seller].pop();
 	}
 
 
