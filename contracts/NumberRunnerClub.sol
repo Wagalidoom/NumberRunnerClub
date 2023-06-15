@@ -12,7 +12,6 @@ import "./INumberRunnerClub.sol";
 
 // TODO add system of burn/sell before claiming personal prize
 contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable, ReentrancyGuard {
-
 	struct PieceDetails {
 		uint256 maxSupply;
 		uint256 totalMinted;
@@ -55,29 +54,23 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	mapping(uint256 => bytes32) public nodeOfTokenId; // Mapping of tokenId to the corresponding ENS name
 	PieceDetails[6] pieceDetails;
 	mapping(uint256 => uint256) private tokenBalance; // Mapping of tokenId to the matching balance
-	// uint256[6][][] private idStacked;
 	mapping(uint8 => uint256[]) private idStacked; // Mapping of Piece to the tokenIds of this piece type stacked in contract
 	uint256[6][] private idToIndex; // mapping(Piece => mapping(uint256 => uint256)) private idToIndex;
 	uint256[6] private typeStacked; // a ameliorer pour recup direct le length de idStacked???
 
 	// La somme totale de tous les sharePerTokenAtEpoch pour chaque type de pièce
 	uint256[][6] totalSharePerToken;
-	// mapping(Piece => mapping(uint256 => uint256)) totalSharePerToken;
 	// Le sharePerToken de l'utilisateur à l'epoch où il a stacké son dernier token
-	// mapping(address => mapping(Piece => uint256)) userSharePerToken;
 	mapping(address => mapping(uint8 => uint256)) userSharePerToken;
 	// Le nombre total de tokens stakés pour chaque type de pièce
 	uint256[6] totalStaked;
-	// mapping(Piece => uint256) totalStaked;
 	// Le nombre de tokens que chaque utilisateur a staké pour chaque type de pièce
-	// mapping(address => mapping(Piece => uint256)) userStaked;
 	mapping(address => mapping(uint8 => uint256)) userStaked;
 
 	mapping(address => uint8) public userColor; // Mapping of user address to chosen color
 	mapping(address => uint256) private burnedCount; // Mapping of user address to counter of nft burned
 	mapping(address => uint256) private burnedCounterCount; // Mapping of user address to counter of nft from the opponent color burned
-	mapping(address => uint256[]) public userOwnedNFTs; // Mapping of user address to his owned nft
-	mapping(address => uint256[]) public userStackedNFTs; // Mapping of user address to his nft stacked in the contract
+	mapping(address => uint256[]) public userOwnedNFTs; // Mapping of user address to his owned nft /!\ supprimer cette variable et gerer les appels off chain?
 	mapping(uint256 => bool) public isStacked; // Mapping of nft stacked in the contract
 	mapping(uint256 => Proposal) public proposals; // Mapping of nft stacked in the contract
 	mapping(uint256 => bool) public hasClaimedGeneral;
@@ -103,7 +96,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	}
 
 	// TODO à qui redistribuer les frais de mint sur le premier mint et/ou quand il n'y a pas de nft stacké
-	function mint(uint8 _pieceType) public payable returns (uint256) {
+	function mint(uint8 _pieceType, uint256 _stackedPiece) public payable returns (uint256) {
 		require(msg.value >= 200000000000000000, "User must send at least 0.2 eth for minting a token");
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
 		require(pieceDetails[_pieceType].totalMinted < pieceDetails[_pieceType].maxSupply, "Max supply for this piece type reached");
@@ -121,7 +114,9 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		if (_pieceType != 5) {
 			bool hasRequiredClubStacked = false;
 			for (uint i = 7; i < pieceDetails[_pieceType].clubRequirement; i++) {
-				if (hasClubStacked(msg.sender, i)) {
+				bytes32 node = nodeOfTokenId[_stackedPiece];
+				require(ens.owner(node) == msg.sender, "Not owner of ENS node");
+				if (isClub(node, i)) {
 					hasRequiredClubStacked = true;
 					break;
 				}
@@ -266,7 +261,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 			// If it's the first piece of this type
 			if (_pieceType != 5 && _pieceType != 0) {
 				pieceDetails[5].percentage -= pieceDetails[_pieceType].percentage;
-				
+
 				// TODO gérer le cas ou aucun pion ou aucun roi n'est stacké
 			}
 		}
@@ -297,10 +292,10 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 
 		// Transfer the NFT back to the function caller
 		ERC721(address(this)).safeTransferFrom(address(this), msg.sender, tokenId);
-		
+
 		isStacked[tokenId] = false;
 		isNodeUsed[node] = false;
-		nodeOfTokenId[tokenId] = 0x0;	
+		nodeOfTokenId[tokenId] = 0x0;
 
 		// distribute rewards
 		// uint256 userReward = (totalSharePerToken[_pieceType][epoch] - userSharePerToken[msg.sender][_pieceType]) * userStaked[msg.sender][_pieceType];
@@ -362,15 +357,6 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		userColor[msg.sender] = _color;
 	}
 
-	function findIndexOfStackedNFT(address user, uint256 tokenId) private view returns (uint256) {
-		for (uint256 i = 0; i < userStackedNFTs[user].length; i++) {
-			if (userStackedNFTs[user][i] == tokenId) {
-				return i;
-			}
-		}
-		revert("NFT not found");
-	}
-
 	function findIndexOfOwnedNFT(address user, uint256 tokenId) private view returns (uint256) {
 		for (uint256 i = 0; i < userOwnedNFTs[user].length; i++) {
 			if (userOwnedNFTs[user][i] == tokenId) {
@@ -398,16 +384,6 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		}
 
 		return true;
-	}
-
-	function hasClubStacked(address user, uint lenght) private view returns (bool) {
-		for (uint256 i = 0; i < userStackedNFTs[user].length; i++) {
-			uint256 tokenId = userStackedNFTs[user][i];
-			if (isClub(nodeOfTokenId[tokenId], lenght)) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	function revealKingHand(uint256 tokenId) public payable returns (bool) {
@@ -586,7 +562,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	function updateEpoch() private {
 		epoch += 1;
 		for (uint8 i = 0; i < 6; i++) {
-			totalSharePerToken[i].push(totalSharePerToken[i][epoch-1]);
+			totalSharePerToken[i].push(totalSharePerToken[i][epoch - 1]);
 		}
 	}
 
@@ -603,14 +579,12 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	}
 
 	function getTotalSharePerToken(uint i, uint j) public view returns (uint256) {
-    	return totalSharePerToken[i][j];
+		return totalSharePerToken[i][j];
 	}
 
 	function getTotalSharePerTokenSize() public view returns (uint, uint) {
-    	return (totalSharePerToken.length, totalSharePerToken[0].length);
-	}	
-
-
+		return (totalSharePerToken.length, totalSharePerToken[0].length);
+	}
 
 	// a terminer
 	// function auctionEnded(uint256 _price, address _newOwner, uint256 _tokenId) public {
