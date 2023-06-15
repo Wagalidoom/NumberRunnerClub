@@ -137,6 +137,11 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		totalMinted++;
 		currentSupply++;
 
+		// If there are no pawn stacked, send the fees to prizepool
+		if (typeStacked[5] == 0) {
+			uint256 pawnShare = (100000000000000 * pieceDetails[5].percentage);
+			prizePool += pawnShare;
+		}
 		// Add the transaction fee to the piece's balance
 		for (uint8 i = 0; i < 6; i++) {
 			if (typeStacked[i] > 0) {
@@ -148,31 +153,6 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 			}
 		}
 		return newItemId;
-	}
-
-	// fonction en cours de production
-	// TODO intégrer systeme de vente sur ce contrat ou contrat externe
-	function sellNFT(uint256 tokenId, address buyer) public {
-		require(totalMinted == MAX_NFT_SUPPLY && currentSupply > 999, "Collection ended");
-		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: transfer caller is not owner nor approved");
-		uint256 taxAmount = (tokenBalance[tokenId] * 16) / 100;
-		uint256 balance = tokenBalance[tokenId];
-		uint256 holdersTax = taxAmount / 2;
-		prizePool += taxAmount / 2;
-		for (uint8 i = 0; i < 6; i++) {
-			// PieceDetails memory pieceType = pieceDetails[Piece(i)];
-			// if (pieceType.currentSupply > 0) {
-			//     uint256 pieceShare = (taxAmount * pieceType.percentage);
-			//     pieceBalance[Piece(i)] += pieceShare;
-			// }
-		}
-
-		tokenBalance[tokenId] = 0;
-		payable(msg.sender).transfer(balance - taxAmount);
-		safeTransferFrom(_msgSender(), buyer, tokenId);
-		uint256 indexNFT = findIndexOfOwnedNFT(msg.sender, tokenId);
-		userOwnedNFTs[msg.sender][indexNFT] = userOwnedNFTs[msg.sender][userOwnedNFTs[msg.sender].length - 1];
-		userOwnedNFTs[msg.sender].pop();
 	}
 
 	function burn(uint256 tokenId) public {
@@ -190,6 +170,11 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		uint256 holdersTax = taxAmount / 2;
 		prizePool += taxAmount / 2;
 
+		// If there are no pawn stacked, send the fees to prizepool
+		if (typeStacked[5] == 0) {
+			uint256 pawnShare = (holdersTax * pieceDetails[5].percentage);
+			prizePool += pawnShare;
+		}
 		for (uint8 i = 0; i < 6; i++) {
 			if (typeStacked[i] > 0) {
 				uint256 pieceShare = (holdersTax * pieceDetails[i].percentage);
@@ -307,6 +292,32 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		// Remove the NFT as the avatar for the ENS node
 		// textResolver.setText(node, "avatar", "");
 	}
+
+	function sellNFT(uint256 tokenId, address buyer) public {
+		if (totalMinted == MAX_NFT_SUPPLY) {
+			require(currentSupply > 999, "Collection ended");
+		}
+		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: transfer caller is not owner nor approved");
+		uint256 taxAmount = (tokenBalance[tokenId] * 16) / 100;
+		uint256 balance = tokenBalance[tokenId];
+		uint256 holdersTax = taxAmount / 2;
+		prizePool += taxAmount / 2;
+		for (uint8 i = 0; i < 6; i++) {
+			// PieceDetails memory pieceType = pieceDetails[Piece(i)];
+			// if (pieceType.currentSupply > 0) {
+			//     uint256 pieceShare = (taxAmount * pieceType.percentage);
+			//     pieceBalance[Piece(i)] += pieceShare;
+			// }
+		}
+
+		tokenBalance[tokenId] = 0;
+		payable(msg.sender).transfer(balance - taxAmount);
+		safeTransferFrom(_msgSender(), buyer, tokenId);
+		uint256 indexNFT = findIndexOfOwnedNFT(msg.sender, tokenId);
+		userOwnedNFTs[msg.sender][indexNFT] = userOwnedNFTs[msg.sender][userOwnedNFTs[msg.sender].length - 1];
+		userOwnedNFTs[msg.sender].pop();
+	}
+
 
 	function isColorValid(uint256 tokenId) private view returns (bool) {
 		return (tokenId % 2 == 0 && userColor[msg.sender] == 1) || (tokenId % 2 != 0 && userColor[msg.sender] == 2);
