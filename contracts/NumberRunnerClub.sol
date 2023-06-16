@@ -161,8 +161,8 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		require(isStacked[tokenId] == false, "Cannot burn a stacked token");
 		uint8 _pieceType = getPieceType(tokenId);
 		require(_pieceType != 0, "Cannot burn the King");
-		uint256 taxAmount = (tokenBalance[tokenId] * pieceDetails[_pieceType].burnTax) / 100;
-		uint256 balance = tokenBalance[tokenId];
+		uint256 reward = (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
+		uint256 taxAmount = (reward * pieceDetails[_pieceType].burnTax) / 100;
 		// TODO revoir la redistribution pour gérer les arrondis
 		uint256 holdersTax = taxAmount / 2;
 		prizePool += taxAmount / 2;
@@ -200,8 +200,8 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		userOwnedNFTs[msg.sender][indexNFT] = userOwnedNFTs[msg.sender][userOwnedNFTs[msg.sender].length - 1];
 		userOwnedNFTs[msg.sender].pop();
 		currentSupply--;
-		tokenBalance[tokenId] = 0;
-		payable(msg.sender).transfer(balance - taxAmount);
+		nftShares[tokenId] = epoch; // ???
+		payable(msg.sender).transfer(reward - taxAmount);
 	}
 
 	// comment verifier que le token stake provient bien de la collection ?
@@ -300,8 +300,9 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		require(isForSale(tokenId), "NFT is not for sale");
 		address seller = ownerOf(tokenId);
 
-		uint256 taxAmount = (tokenBalance[tokenId] * 16) / 100;
-		uint256 balance = tokenBalance[tokenId];
+		uint256 _pieceType = getPieceType(tokenId);
+		uint256 reward = (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
+		uint256 taxAmount = (reward * 16) / 100;
 
 		prizePool += taxAmount / 2;
 		uint256 holdersTax = taxAmount / 2;
@@ -315,8 +316,8 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 			}
 		}
 
-		tokenBalance[tokenId] = 0;
-		payable(seller).transfer(balance - taxAmount);
+		nftShares[tokenId] = epoch; /// ???
+		payable(seller).transfer(reward - taxAmount);
 		safeTransferFrom(msg.sender, buyer, tokenId);
 		uint256 indexNFT = findIndexOfOwnedNFT(msg.sender, tokenId);
 		userOwnedNFTs[seller][indexNFT] = userOwnedNFTs[seller][userOwnedNFTs[seller].length - 1];
@@ -455,14 +456,6 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		isKingsHandSet = true;
 	}
 
-	// Laquelle des deux fonctions utiliser ? Et reverser a la cagnotte du nft ou directement transfer au holder?
-	function distributeKingAuction() private {
-		uint256 pieceShare = kingHandsPrize / kingHands.length;
-		for (uint256 i = 0; i < kingHands.length; i++) {
-			tokenBalance[kingHands[i]] += pieceShare;
-		}
-	}
-
 	function claimKingHand(uint256 tokenId) public {
 		require(totalMinted == MAX_NFT_SUPPLY && currentSupply == 999, "Collection not ended yet");
 
@@ -478,7 +471,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		}
 		require(isKingHand, "Token must be a King's Hand");
 		uint256 pieceShare = kingHandsPrize / kingHands.length;
-		tokenBalance[tokenId] += pieceShare;
+		// tokenBalance[tokenId] += pieceShare; faire un transfer ici
 		kingHands[i] = kingHands[kingHands.length - 1];
 		kingHands.pop();
 	}
@@ -542,9 +535,10 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	function claimPrivatePrize(uint256 tokenId) public {
 		require(totalMinted == MAX_NFT_SUPPLY && currentSupply <= 999, "Burn or sell the nft to claim your rewards");
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
-		uint256 balance = tokenBalance[tokenId];
-		tokenBalance[tokenId] = 0;
-		payable(msg.sender).transfer(balance);
+		uint8 _pieceType = getPieceType(tokenId);
+		uint256 reward = (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
+		nftShares[tokenId] = epoch;
+		payable(msg.sender).transfer(reward);
 	}
 
 	function spawnKings() public {
@@ -608,6 +602,11 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 
 	function getShareTypeAccumulatorSize() public view returns (uint, uint) {
 		return (shareTypeAccumulator.length, shareTypeAccumulator[0].length);
+	}
+
+	function getReward(uint256 tokenId) public view returns (uint) {
+		uint8 _pieceType = getPieceType(tokenId);
+		return (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
 	}
 
 	// a terminer

@@ -1,13 +1,13 @@
 {
   "dependencies": {
     "dotenv": "^16.0.3",
+    "ethers": "^6.6.0",
     "ganache": "^7.8.0"
   },
   "devDependencies": {
     "@chainlink/contracts": "^0.5.1",
     "@ensdomains/ens-contracts": "^0.0.21",
     "@openzeppelin/contracts": "^4.9.1",
-    "ethers": "^6.6.0",
-    "truffle": "^5.9.4"
+    "truffle": "^5.8.4"
   }
 }
