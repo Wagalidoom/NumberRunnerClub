@@ -71,7 +71,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	mapping(uint256 => Proposal) public proposals; // Mapping of nft stacked in the contract
 	mapping(uint256 => bool) public hasClaimedGeneral;
 	mapping(bytes32 => bool) public isNodeUsed;
-	mapping(uint256 => bool) public forSale;
+	mapping(uint256 => uint256) public nftPriceForSale;
 
 	event KingHandBurned(uint256 tokenId);
 
@@ -91,6 +91,12 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		updateEpoch();
 		spawnKings();
 	}
+
+	modifier saleIsActive {
+		require(totalMinted < MAX_NFT_SUPPLY || currentSupply > 999, "Collection ended");
+		_;
+	}
+
 
 	// TODO à qui redistribuer les frais de mint sur le premier mint et/ou quand il n'y a pas de nft stacké
 	function mint(uint8 _pieceType, uint256 _stackedPiece) public payable returns (uint256) {
@@ -152,11 +158,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		return newItemId;
 	}
 
-	function burn(uint256 tokenId) public {
-		// faille si tout est mint mais le current supply est inferieur a 999 restants ?
-		if (totalMinted == MAX_NFT_SUPPLY) {
-			require(currentSupply > 999, "Collection ended");
-		}
+	function burn(uint256 tokenId) public saleIsActive {
 		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: burn caller is not owner nor approved");
 		require(isStacked[tokenId] == false, "Cannot burn a stacked token");
 		uint8 _pieceType = getPieceType(tokenId);
@@ -285,21 +287,32 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		textResolver.setText(node, "avatar", "");
 	}
 
-	function listNFT(uint256 tokenId) public {
-		if (totalMinted == MAX_NFT_SUPPLY) {
-			require(currentSupply > 999, "Collection ended");
-		}
+	function listNFT(uint256 tokenId, uint256 price) public saleIsActive {
+		require(!isForSale(tokenId));
 		require(_isApprovedOrOwner(msg.sender, tokenId), "ERC721: transfer caller is not owner nor approved");
-
+		require(price > 0);
+		_setNftPrice(tokenId, price);
 	}
 
-	function buyNFT(uint256 tokenId, address buyer, uint256 price) public {
-		if (totalMinted == MAX_NFT_SUPPLY) {
-			require(currentSupply > 999, "Collection ended");
-		}
+	function unlistNFT(uint256 tokenId) public saleIsActive {
+		require(msg.sender == ownerOf(tokenId), "Not owner of the NFT");
 		require(isForSale(tokenId), "NFT is not for sale");
-		address seller = ownerOf(tokenId);
+    	
+		uint256 price = getNftPrice(tokenId);
+		require(price > 0);
+		_setNftPrice(tokenId, 0);
+	}
 
+	function buyNFT(uint256 tokenId) public payable saleIsActive {
+
+		require(isForSale(tokenId), "NFT is not for sale");
+		require(msg.sender != address(0), "Buyer is zero address");
+    	
+		uint256 price = getNftPrice(tokenId);
+		require(price > 0);
+		require(msg.value >= price, "Insufficient amount sent");
+
+		address seller = ownerOf(tokenId);
 		uint256 _pieceType = getPieceType(tokenId);
 		uint256 reward = (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
 		uint256 taxAmount = (reward * 16) / 100;
@@ -316,14 +329,21 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 			}
 		}
 
-		nftShares[tokenId] = epoch; /// ???
-		payable(seller).transfer(reward - taxAmount);
-		safeTransferFrom(msg.sender, buyer, tokenId);
-		uint256 indexNFT = findIndexOfOwnedNFT(msg.sender, tokenId);
+		nftShares[tokenId] = epoch;
+		// Ensure the contract has enough balance to pay the seller
+    	require(address(this).balance >= reward - taxAmount + price, "Not enough balance in contract to pay seller");
+
+		// Use call instead of transfer to send ether
+		(bool success, ) = payable(seller).call{value: reward - taxAmount + price}("");
+		require(success, "Failed to transfer ether to seller");
+		// Transfer nft
+		safeTransferFrom(seller, msg.sender, tokenId);
+		// Update user owned nfts list
+		uint256 indexNFT = findIndexOfOwnedNFT(seller, tokenId);
 		userOwnedNFTs[seller][indexNFT] = userOwnedNFTs[seller][userOwnedNFTs[seller].length - 1];
 		userOwnedNFTs[seller].pop();
+		userOwnedNFTs[msg.sender].push(tokenId);
 	}
-
 
 	function isColorValid(uint256 tokenId) private view returns (bool) {
 		return (tokenId % 2 == 0 && userColor[msg.sender] == 1) || (tokenId % 2 != 0 && userColor[msg.sender] == 2);
@@ -572,16 +592,19 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		}
 	}
 
-	function listForSale(uint256 tokenId) internal {
-        forSale[tokenId] = true;
-    }
+	function getNftPrice(uint256 tokenId) public view returns(uint256) {
+		return (nftPriceForSale[tokenId]);
+	}
 
-    function removeFromSale(uint256 tokenId) internal {
-        forSale[tokenId] = false;
-    }
+	function _setNftPrice(uint256 tokenId, uint256 price) private {
+		nftPriceForSale[tokenId] = price;
+	}
 
 	function isForSale(uint256 tokenId) public view returns(bool) {
-        return forSale[tokenId];
+		if (nftPriceForSale[tokenId] > 0) {
+			return true;
+		}
+        return false;
     }
 
 	function getUserOwnedNFTs(address user) public view returns (uint256[] memory) {
