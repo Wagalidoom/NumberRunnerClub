@@ -35,7 +35,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		mapping(uint256 => bool) voted;
 	}
 
-	uint256 public constant MAX_NFT_SUPPLY = 10000;
+	uint256 public constant MAX_NFT_SUPPLY = 10;
 	uint256 public totalMinted = 0;
 	uint256 public currentSupply = 0;
 	uint256 public userStacked = 0;
@@ -63,6 +63,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	// Le sharePerToken de l'utilisateur à l'epoch où il a stacké son dernier token
 	mapping(uint256 => uint256) nftShares;
 
+	mapping(uint256 => uint256) public unclaimedRewards; // Mapping des récompenses non claim associées au nft
 	mapping(address => uint8) public userColor; // Mapping of user address to chosen color
 	mapping(address => uint256) private burnedCount; // Mapping of user address to counter of nft burned
 	mapping(address => uint256) private burnedCounterCount; // Mapping of user address to counter of nft from the opponent color burned
@@ -96,7 +97,6 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		require(totalMinted < MAX_NFT_SUPPLY || currentSupply > 999, "Collection ended");
 		_;
 	}
-
 
 	// TODO à qui redistribuer les frais de mint sur le premier mint et/ou quand il n'y a pas de nft stacké
 	function mint(uint8 _pieceType, uint256 _stackedPiece) public payable returns (uint256) {
@@ -145,6 +145,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 			uint256 pawnShare = (100000000000000 * pieceDetails[5].percentage);
 			prizePool += pawnShare;
 		}
+
 		// Add the transaction fee to the piece's balance
 		for (uint8 i = 0; i < 6; i++) {
 			if (typeStacked[i] > 0) {
@@ -163,8 +164,13 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		require(isStacked[tokenId] == false, "Cannot burn a stacked token");
 		uint8 _pieceType = getPieceType(tokenId);
 		require(_pieceType != 0, "Cannot burn the King");
-		uint256 reward = (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
-		uint256 taxAmount = (reward * pieceDetails[_pieceType].burnTax) / 100;
+		uint256 unclaimedReward = (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
+		// update unclaimed rewards
+		unclaimedRewards[tokenId] += unclaimedReward;
+		uint256 totalReward =  unclaimedRewards[tokenId];
+		// Reset reward to 0
+		unclaimedRewards[tokenId] = 0;
+		uint256 taxAmount = (totalReward * pieceDetails[_pieceType].burnTax) / 100;
 		// TODO revoir la redistribution pour gérer les arrondis
 		uint256 holdersTax = taxAmount / 2;
 		prizePool += taxAmount / 2;
@@ -202,8 +208,8 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		userOwnedNFTs[msg.sender][indexNFT] = userOwnedNFTs[msg.sender][userOwnedNFTs[msg.sender].length - 1];
 		userOwnedNFTs[msg.sender].pop();
 		currentSupply--;
-		nftShares[tokenId] = epoch; // ???
-		payable(msg.sender).transfer(reward - taxAmount);
+		nftShares[tokenId] = epoch;
+		payable(msg.sender).transfer(totalReward - taxAmount);
 	}
 
 	// comment verifier que le token stake provient bien de la collection ?
@@ -266,7 +272,6 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		bytes32 node = nodeOfTokenId[tokenId];
 		uint8 _pieceType = getPieceType(tokenId);
 		// require(ens.owner(node) == msg.sender, "Not owner of ENS node");
-
 		typeStacked[_pieceType] -= 1;
 
 		// Transfer the NFT back to the function caller
@@ -277,14 +282,14 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		nodeOfTokenId[tokenId] = 0x0;
 
 		// distribute rewards
-		uint256 reward = (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
-		// transfer reward to user
-		_safeTransfer(address(this), msg.sender, reward, "");
+		uint256 unclaimedReward = (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
+		// update unclaimed rewards
+		unclaimedRewards[tokenId] += unclaimedReward;
 		// update user and total stake count
 		nftShares[tokenId] = shareTypeAccumulator[_pieceType][epoch];
 
 		// Remove the NFT as the avatar for the ENS node
-		textResolver.setText(node, "avatar", "");
+		// textResolver.setText(node, "avatar", "");
 	}
 
 	function listNFT(uint256 tokenId, uint256 price) public saleIsActive {
@@ -297,25 +302,28 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	function unlistNFT(uint256 tokenId) public saleIsActive {
 		require(msg.sender == ownerOf(tokenId), "Not owner of the NFT");
 		require(isForSale(tokenId), "NFT is not for sale");
-    	
 		uint256 price = getNftPrice(tokenId);
 		require(price > 0);
 		_setNftPrice(tokenId, 0);
 	}
 
 	function buyNFT(uint256 tokenId) public payable saleIsActive {
-
 		require(isForSale(tokenId), "NFT is not for sale");
 		require(msg.sender != address(0), "Buyer is zero address");
-    	
 		uint256 price = getNftPrice(tokenId);
 		require(price > 0);
 		require(msg.value >= price, "Insufficient amount sent");
 
 		address seller = ownerOf(tokenId);
 		uint256 _pieceType = getPieceType(tokenId);
-		uint256 reward = (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
-		uint256 taxAmount = (reward * 16) / 100;
+		uint256 unclaimedReward = (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
+		// update unclaimed rewards
+		unclaimedRewards[tokenId] += unclaimedReward;
+		uint256 totalReward =  unclaimedRewards[tokenId];
+		// Reset reward to 0
+		unclaimedRewards[tokenId] = 0;
+
+		uint256 taxAmount = (totalReward * 16) / 100;
 
 		prizePool += taxAmount / 2;
 		uint256 holdersTax = taxAmount / 2;
@@ -331,13 +339,13 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 
 		nftShares[tokenId] = epoch;
 		// Ensure the contract has enough balance to pay the seller
-    	require(address(this).balance >= reward - taxAmount + price, "Not enough balance in contract to pay seller");
+    	require(address(this).balance >= totalReward - taxAmount + price, "Not enough balance in contract to pay seller");
 
 		// Use call instead of transfer to send ether
-		(bool success, ) = payable(seller).call{value: reward - taxAmount + price}("");
+		(bool success, ) = payable(seller).call{value: totalReward - taxAmount + price}("");
 		require(success, "Failed to transfer ether to seller");
 		// Transfer nft
-		safeTransferFrom(seller, msg.sender, tokenId);
+		ERC721(address(this)).safeTransferFrom(seller, msg.sender, tokenId);
 		// Update user owned nfts list
 		uint256 indexNFT = findIndexOfOwnedNFT(seller, tokenId);
 		userOwnedNFTs[seller][indexNFT] = userOwnedNFTs[seller][userOwnedNFTs[seller].length - 1];
@@ -369,7 +377,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	}
 
 	function getPieceType(uint256 nftId) public pure returns (uint8) {
-		require(nftId < MAX_NFT_SUPPLY, "NFT ID out of range");
+		// require(nftId < MAX_NFT_SUPPLY, "NFT ID out of range");
 		if (nftId >= 0 && nftId < 2) {
 			return 0;
 		} else if (nftId >= 2 && nftId < 12) {
@@ -556,9 +564,14 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		require(totalMinted == MAX_NFT_SUPPLY && currentSupply <= 999, "Burn or sell the nft to claim your rewards");
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		uint8 _pieceType = getPieceType(tokenId);
-		uint256 reward = (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
+		uint256 unclaimedReward = (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
+		// update unclaimed rewards
+		unclaimedRewards[tokenId] += unclaimedReward;
+		uint256 totalReward =  unclaimedRewards[tokenId];
+		// Reset reward to 0
+		unclaimedRewards[tokenId] = 0;
 		nftShares[tokenId] = epoch;
-		payable(msg.sender).transfer(reward);
+		payable(msg.sender).transfer(totalReward);
 	}
 
 	function spawnKings() public {
