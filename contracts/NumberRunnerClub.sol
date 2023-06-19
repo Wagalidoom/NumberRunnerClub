@@ -618,6 +618,14 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	function getIsStacked(uint256 _id) public view returns (bool) {
 		return isStacked[_id];
 	}
+	
+	function getBurnedCount(address user) public view returns (uint256) {
+		return burnedCount(user);
+	}
+
+	function getBurnedCounterCount(address user) public view returns (uint256) {
+		return burnedCounterCount(user);
+	}
 
 	function getShareTypeAccumulator(uint i, uint j) public view returns (uint256) {
 		return shareTypeAccumulator[i][j];
