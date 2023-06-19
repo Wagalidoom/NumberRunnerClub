@@ -620,11 +620,11 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 	}
 	
 	function getBurnedCount(address user) public view returns (uint256) {
-		return burnedCount(user);
+		return burnedCount[user];
 	}
 
 	function getBurnedCounterCount(address user) public view returns (uint256) {
-		return burnedCounterCount(user);
+		return burnedCounterCount[user];
 	}
 
 	function getShareTypeAccumulator(uint i, uint j) public view returns (uint256) {
