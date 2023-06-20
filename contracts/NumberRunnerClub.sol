@@ -12,6 +12,12 @@ import "./INumberRunnerClub.sol";
 
 // TODO add system of burn/sell before claiming personal prize
 contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable, ReentrancyGuard {
+
+	event NFTPurchased(address buyer, address seller, uint256 tokenId, uint256 price);
+	event ColorChoosed(uint8 color, address user);
+	event NFTListed(address seller, uint256 tokenId, uint256 price);
+	event NFTUnlisted(address seller, uint256 tokenId, uint256 price);
+
 	struct PieceDetails {
 		uint256 maxSupply;
 		uint256 totalMinted;
@@ -296,6 +302,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		require(_isApprovedOrOwner(msg.sender, tokenId), "ERC721: transfer caller is not owner nor approved");
 		require(price > 0);
 		_setNftPrice(tokenId, price);
+		emit NFTListed(msg.sender, tokenId, price);
 	}
 
 	function unlistNFT(uint256 tokenId) public saleIsActive {
@@ -304,6 +311,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		uint256 price = getNftPrice(tokenId);
 		require(price > 0);
 		_setNftPrice(tokenId, 0);
+		emit NFTUnlisted(msg.sender, tokenId, price);
 	}
 
 	function buyNFT(uint256 tokenId) public payable saleIsActive {
@@ -350,6 +358,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		userOwnedNFTs[seller][indexNFT] = userOwnedNFTs[seller][userOwnedNFTs[seller].length - 1];
 		userOwnedNFTs[seller].pop();
 		userOwnedNFTs[msg.sender].push(tokenId);
+		emit NFTPurchased(msg.sender, seller, tokenId, price);
 	}
 
 	function isColorValid(uint256 tokenId) private view returns (bool) {
@@ -399,6 +408,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		require(_color == 1 || _color == 2, "Invalid color");
 		require(userColor[msg.sender] == 0, "Color already chosen");
 		userColor[msg.sender] = _color;
+		emit ColorChoosed(_color, msg.sender);
 	}
 
 	function findIndexOfOwnedNFT(address user, uint256 tokenId) private view returns (uint256) {
