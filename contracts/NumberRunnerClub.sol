@@ -177,12 +177,12 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 
 		// If there are no pawn stacked, send the fees to prizepool
 		if (typeStacked[5] == 0) {
-			uint256 pawnShare = (holdersTax * pieceDetails[5].percentage);
+			uint256 pawnShare = (holdersTax * pieceDetails[5].percentage) / 1000;
 			prizePool += pawnShare;
 		}
 		for (uint8 i = 0; i < 6; i++) {
 			if (typeStacked[i] > 0) {
-				uint256 pieceShare = (holdersTax * pieceDetails[i].percentage);
+				uint256 pieceShare = (holdersTax * pieceDetails[i].percentage) / 1000;
 				if (typeStacked[i] > 0) {
 					shareTypeAccumulator[i][epoch] = shareTypeAccumulator[i][epoch - 1] + pieceShare / typeStacked[i];
 				}
@@ -249,7 +249,6 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 			// If it's the first piece of this type
 			if (_pieceType != 5 && _pieceType != 0) {
 				pieceDetails[5].percentage -= pieceDetails[_pieceType].percentage;
-				// TODO gérer le cas ou aucun pion ou aucun roi n'est stacké
 			}
 		}
 
@@ -329,7 +328,7 @@ contract NumberRunnerClub is INumberRunnerClub, ERC721URIStorage, VRFV2WrapperCo
 		uint256 holdersTax = taxAmount / 2;
 		for (uint8 i = 0; i < 6; i++) {
 			if (typeStacked[i] > 0) {
-				uint256 pieceShare = (holdersTax * pieceDetails[i].percentage);
+				uint256 pieceShare = (holdersTax * pieceDetails[i].percentage) / 1000;
 				if (typeStacked[i] > 0) {
 					shareTypeAccumulator[i][epoch] = shareTypeAccumulator[i][epoch - 1] + pieceShare / typeStacked[i];
 				}
