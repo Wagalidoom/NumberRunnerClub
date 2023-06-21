@@ -10,6 +10,12 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 // TODO add system of burn/sell before claiming personal prize
 contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable, ReentrancyGuard {
+
+	event NFTPurchased(address buyer, address seller, uint256 tokenId, uint256 price);
+	event ColorChoosed(uint8 color, address user);
+	event NFTListed(address seller, uint256 tokenId, uint256 price);
+	event NFTUnlisted(address seller, uint256 tokenId, uint256 price);
+
 	struct PieceDetails {
 		uint256 maxSupply;
 		uint256 totalMinted;
@@ -173,12 +179,12 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 		// If there are no pawn stacked, send the fees to prizepool
 		if (typeStacked[5] == 0) {
-			uint256 pawnShare = (holdersTax * pieceDetails[5].percentage);
+			uint256 pawnShare = (holdersTax * pieceDetails[5].percentage) / 1000;
 			prizePool += pawnShare;
 		}
 		for (uint8 i = 0; i < 6; i++) {
 			if (typeStacked[i] > 0) {
-				uint256 pieceShare = (holdersTax * pieceDetails[i].percentage);
+				uint256 pieceShare = (holdersTax * pieceDetails[i].percentage) / 1000;
 				if (typeStacked[i] > 0) {
 					shareTypeAccumulator[i][epoch] = shareTypeAccumulator[i][epoch - 1] + pieceShare / typeStacked[i];
 				}
@@ -245,7 +251,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 			// If it's the first piece of this type
 			if (_pieceType != 5 && _pieceType != 0) {
 				pieceDetails[5].percentage -= pieceDetails[_pieceType].percentage;
-				// TODO gérer le cas ou aucun pion ou aucun roi n'est stacké
 			}
 		}
 
@@ -287,6 +292,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		require(_isApprovedOrOwner(msg.sender, tokenId), "ERC721: transfer caller is not owner nor approved");
 		require(price > 0);
 		_setNftPrice(tokenId, price);
+		emit NFTListed(msg.sender, tokenId, price);
 	}
 
 	function unlistNFT(uint256 tokenId) public saleIsActive {
@@ -295,6 +301,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		uint256 price = getNftPrice(tokenId);
 		require(price > 0);
 		_setNftPrice(tokenId, 0);
+		emit NFTUnlisted(msg.sender, tokenId, price);
 	}
 
 	function buyNFT(uint256 tokenId) public payable saleIsActive {
@@ -319,7 +326,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		uint256 holdersTax = taxAmount / 2;
 		for (uint8 i = 0; i < 6; i++) {
 			if (typeStacked[i] > 0) {
-				uint256 pieceShare = (holdersTax * pieceDetails[i].percentage);
+				uint256 pieceShare = (holdersTax * pieceDetails[i].percentage) / 1000;
 				if (typeStacked[i] > 0) {
 					shareTypeAccumulator[i][epoch] = shareTypeAccumulator[i][epoch - 1] + pieceShare / typeStacked[i];
 				}
@@ -341,6 +348,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		userOwnedNFTs[seller][indexNFT] = userOwnedNFTs[seller][userOwnedNFTs[seller].length - 1];
 		userOwnedNFTs[seller].pop();
 		userOwnedNFTs[msg.sender].push(tokenId);
+		emit NFTPurchased(msg.sender, seller, tokenId, price);
 	}
 
 	function isColorValid(uint256 tokenId) private view returns (bool) {
@@ -390,6 +398,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		require(_color == 1 || _color == 2, "Invalid color");
 		require(userColor[msg.sender] == 0, "Color already chosen");
 		userColor[msg.sender] = _color;
+		emit ColorChoosed(_color, msg.sender);
 	}
 
 	function findIndexOfOwnedNFT(address user, uint256 tokenId) private view returns (uint256) {

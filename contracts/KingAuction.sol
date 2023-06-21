@@ -43,6 +43,4 @@ contract KingAuction {
 			return maxPrice - priceDrop;
 		}
 	}
-
-
 }

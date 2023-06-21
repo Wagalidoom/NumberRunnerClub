@@ -5,17 +5,17 @@ module.exports = async function(callback) {
   try {
     console.log(ethers.version)
     const instance = await NumberRunnerClub.deployed();
-    await instance.chooseColor(1, {from: "0x5f39D68caFb8B43d194792d622db6ef71d6ABdE8"})
+    await instance.chooseColor(1, {from: "0xFeCec56CAC42117f8a6180CD83E890De54c3e7ED"})
   
     for (let i = 0; i < 8; i++) {
       // User A minte et liste le token
-      const _Mint = await instance.mint(5,0, {from: "0x5f39D68caFb8B43d194792d622db6ef71d6ABdE8", value: web3.utils.toWei('0.21', 'ether')});
+      const _Mint = await instance.mint(5,0, {from: "0xFeCec56CAC42117f8a6180CD83E890De54c3e7ED", value: web3.utils.toWei('0.21', 'ether')});
       console.log("Gas used MINT :", _Mint.receipt.gasUsed);
       id = _Mint.logs[0].args.tokenId.words[0]
       console.log(id);
       console.log(`Minted token ${id}`);
       console.log(`TOTAL MINTED : ${await instance.totalMinted()}`)
-      await instance.approve("0xC71112c360e8C500160701dC1a1E43aC58247824", id);
+      await instance.approve("0x0Fb3743309BC2584158A755b8Ae756Ea5bc90733", id);
       
       const _Stake = await instance.stack(web3.utils.asciiToHex("121.eth"), id);
       console.log("Gas used STAKING :", _Stake.receipt.gasUsed)
@@ -25,7 +25,7 @@ module.exports = async function(callback) {
      
       
     }
-    const unstack = await instance.unstack(362, {from: "0x5f39D68caFb8B43d194792d622db6ef71d6ABdE8"});
+    const unstack = await instance.unstack(362, {from: "0xFeCec56CAC42117f8a6180CD83E890De54c3e7ED"});
     console.log(unstack)
     console.log("UNSTACKED 362")
     let size = await instance.getShareTypeAccumulatorSize();
@@ -38,7 +38,7 @@ module.exports = async function(callback) {
 
     console.log("AVANT LE CLAMING : ", (await instance.unclaimedRewards(362)).toString());
     console.log((await web3.eth.getBalance(instance.address)).toString());
-    const _claim = await instance.claimPrivatePrize(362, {from: "0x5f39D68caFb8B43d194792d622db6ef71d6ABdE8"});
+    const _claim = await instance.claimPrivatePrize(362, {from: "0xFeCec56CAC42117f8a6180CD83E890De54c3e7ED"});
     console.log(_claim);
     console.log("CLAIMED !");
     console.log("APRES LE CLAMING : ", (await instance.unclaimedRewards(362)).toString());
