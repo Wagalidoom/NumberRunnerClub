@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 // TODO add system of burn/sell before claiming personal prize
-contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable, ReentrancyGuard {
+contract NumberRunnerClubLight is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable, ReentrancyGuard {
 	struct PieceDetails {
 		uint256 maxSupply;
 		uint256 totalMinted;
@@ -64,7 +64,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	mapping(address => uint8) public userColor; // Mapping of user address to chosen color
 	mapping(address => uint256) private burnedCount; // Mapping of user address to counter of nft burned
 	mapping(address => uint256) private burnedCounterCount; // Mapping of user address to counter of nft from the opponent color burned
-	mapping(address => uint256[]) public userOwnedNFTs; // Mapping of user address to his owned nft /!\ supprimer cette variable et gerer les appels off chain?
 	mapping(uint256 => bool) public isStacked; // Mapping of nft stacked in the contract
 	mapping(uint256 => Proposal) public proposals; // Mapping of nft stacked in the contract
 	mapping(uint256 => bool) public hasClaimedGeneral;
@@ -129,8 +128,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 		_mint(msg.sender, newItemId);
 		_setTokenURI(newItemId, "");
-		// collection.push(_piece);
-		userOwnedNFTs[msg.sender].push(newItemId);
 		pieceDetails[_pieceType].totalMinted++;
 		userColor[msg.sender] == 1 ? pieceDetails[_pieceType].blackMinted++ : pieceDetails[_pieceType].whiteMinted++;
 		totalMinted++;
@@ -200,9 +197,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 				}
 			}
 		}
-		uint256 indexNFT = findIndexOfOwnedNFT(msg.sender, tokenId);
-		userOwnedNFTs[msg.sender][indexNFT] = userOwnedNFTs[msg.sender][userOwnedNFTs[msg.sender].length - 1];
-		userOwnedNFTs[msg.sender].pop();
 		currentSupply--;
 		nftShares[tokenId] = epoch;
 		payable(msg.sender).transfer(totalReward - taxAmount);
@@ -337,10 +331,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		// Transfer nft
 		ERC721(address(this)).safeTransferFrom(seller, msg.sender, tokenId);
 		// Update user owned nfts list
-		uint256 indexNFT = findIndexOfOwnedNFT(seller, tokenId);
-		userOwnedNFTs[seller][indexNFT] = userOwnedNFTs[seller][userOwnedNFTs[seller].length - 1];
-		userOwnedNFTs[seller].pop();
-		userOwnedNFTs[msg.sender].push(tokenId);
 	}
 
 	function isColorValid(uint256 tokenId) private view returns (bool) {
@@ -390,15 +380,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		require(_color == 1 || _color == 2, "Invalid color");
 		require(userColor[msg.sender] == 0, "Color already chosen");
 		userColor[msg.sender] = _color;
-	}
-
-	function findIndexOfOwnedNFT(address user, uint256 tokenId) private view returns (uint256) {
-		for (uint256 i = 0; i < userOwnedNFTs[user].length; i++) {
-			if (userOwnedNFTs[user][i] == tokenId) {
-				return i;
-			}
-		}
-		revert("NFT not found");
 	}
 
 	function isClub(bytes32 name, uint length) public pure returns (bool) {
@@ -568,7 +549,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		// Black king
 		_mint(address(this), 0);
 		_setTokenURI(0, "");
-		userOwnedNFTs[address(this)].push(0);
 		pieceDetails[0].totalMinted++;
 		pieceDetails[0].blackMinted++;
 		totalMinted++;
@@ -579,7 +559,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		// White king
 		_mint(address(this), 1);
 		_setTokenURI(1, "");
-		userOwnedNFTs[address(this)].push(0);
 		pieceDetails[0].totalMinted++;
 		pieceDetails[0].whiteMinted++;
 		totalMinted++;
@@ -610,26 +589,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
         return false;
     }
 
-	function getUserOwnedNFTs(address user) public view returns (uint256[] memory) {
-		return userOwnedNFTs[user];
-	}
-
-	function getUserColor(address user) public view returns (uint8) {
-		return userColor[user];
-	}
-
-	function getIsStacked(uint256 _id) public view returns (bool) {
-		return isStacked[_id];
-	}
-	
-	function getBurnedCount(address user) public view returns (uint256) {
-		return burnedCount[user];
-	}
-
-	function getBurnedCounterCount(address user) public view returns (uint256) {
-		return burnedCounterCount[user];
-	}
-
 	function getShareTypeAccumulator(uint i, uint j) public view returns (uint256) {
 		return shareTypeAccumulator[i][j];
 	}
@@ -648,9 +607,3 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	// 	kingHandsPrize += _price;
 	// }
 }
-
-// notes : pourquoi vendre sur le marché secondaire du contrat plutot que sur une marketplace type opensea si la cagnotte personnelle
-// a claim est trop faible comparé aux taxes ?
-
-// le cas ou tous les nfts sont mint puis on burn jusqu a 999
-// le cas ou il y a moins de 999 nft et ont mint tout jusqu'a atteindre 999 nft
