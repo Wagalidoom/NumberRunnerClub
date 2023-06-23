@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import "@ensdomains/ens-contracts/contracts/registry/ENS.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -56,10 +55,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	ENS ens;
 	mapping(uint256 => bytes32) public nodeOfTokenId; // Mapping of tokenId to the corresponding ENS name
 	PieceDetails[6] pieceDetails;
-	
-	mapping(uint8 => uint256[]) private idStacked; // Mapping of Piece to the tokenIds of this piece type stacked in contract
-	uint256[6][] private idToIndex; // mapping(Piece => mapping(uint256 => uint256)) private idToIndex;
-	uint256[6] private typeStacked; // a ameliorer pour recup direct le length de idStacked???
+
+	uint256[6] private typeStacked;
 
 	// La somme totale de tous les sharePerTokenAtEpoch pour chaque type de pièce
 	uint256[][6] shareTypeAccumulator;
@@ -70,7 +67,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	mapping(address => uint8) public userColor; // Mapping of user address to chosen color
 	mapping(address => uint256) private burnedCount; // Mapping of user address to counter of nft burned
 	mapping(address => uint256) private burnedCounterCount; // Mapping of user address to counter of nft from the opponent color burned
-	mapping(address => uint256[]) public userOwnedNFTs; // Mapping of user address to his owned nft /!\ supprimer cette variable et gerer les appels off chain?
 	mapping(uint256 => bool) public isStacked; // Mapping of nft stacked in the contract
 	mapping(uint256 => Proposal) public proposals; // Mapping of nft stacked in the contract
 	mapping(uint256 => bool) public hasClaimedGeneral;
@@ -102,7 +98,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 	// TODO à qui redistribuer les frais de mint sur le premier mint et/ou quand il n'y a pas de nft stacké
 	function mint(uint8 _pieceType, uint256 _stackedPiece) public payable returns (uint256) {
-		require(msg.value >= 200000000000000000, "User must send at least 0.2 eth for minting a token");
+		require(msg.value >= 20000000000000, "User must send at least 0.2 eth for minting a token");
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
 		require(pieceDetails[_pieceType].totalMinted < pieceDetails[_pieceType].maxSupply, "Max supply for this piece type reached");
 		if (userColor[msg.sender] == 1) {
@@ -135,8 +131,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 		_mint(msg.sender, newItemId);
 		_setTokenURI(newItemId, "");
-		// collection.push(_piece);
-		userOwnedNFTs[msg.sender].push(newItemId);
 		pieceDetails[_pieceType].totalMinted++;
 		userColor[msg.sender] == 1 ? pieceDetails[_pieceType].blackMinted++ : pieceDetails[_pieceType].whiteMinted++;
 		totalMinted++;
@@ -144,14 +138,14 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 		// If there are no pawn stacked, send the fees to prizepool
 		if (typeStacked[5] == 0) {
-			uint256 pawnShare = (100000000000000 * pieceDetails[5].percentage);
+			uint256 pawnShare = (10000000000000 * pieceDetails[5].percentage);
 			prizePool += pawnShare;
 		}
 
 		// Add the transaction fee to the piece's balance
 		for (uint8 i = 0; i < 6; i++) {
 			if (typeStacked[i] > 0) {
-				uint256 pieceShare = (100000000000000 * pieceDetails[i].percentage);
+				uint256 pieceShare = (10000000000000 * pieceDetails[i].percentage);
 				if (typeStacked[i] > 0) {
 					shareTypeAccumulator[i][epoch] = shareTypeAccumulator[i][epoch - 1] + pieceShare / typeStacked[i];
 				}
@@ -206,9 +200,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 				}
 			}
 		}
-		uint256 indexNFT = findIndexOfOwnedNFT(msg.sender, tokenId);
-		userOwnedNFTs[msg.sender][indexNFT] = userOwnedNFTs[msg.sender][userOwnedNFTs[msg.sender].length - 1];
-		userOwnedNFTs[msg.sender].pop();
 		currentSupply--;
 		nftShares[tokenId] = epoch;
 		payable(msg.sender).transfer(totalReward - taxAmount);
@@ -219,7 +210,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	// comment recuper les nfts qui sont stacke si ils ne sont plus own par l'utilisateur
 	function stack(bytes32 node, uint256 tokenId) public {
 		// Ensure the function caller owns the ENS node
-		// require(ens.owner(node) == msg.sender, "Not owner of ENS node");
+		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 		require(!isStacked[tokenId], "Token is already stacked");
 		// Ensure the function caller owns the NFT
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
@@ -269,7 +260,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		require(ownerOf(tokenId) == address(this), "NFT not staked");
 		bytes32 node = nodeOfTokenId[tokenId];
 		uint8 _pieceType = getPieceType(tokenId);
-		// require(ens.owner(node) == msg.sender, "Not owner of ENS node");
+		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 		typeStacked[_pieceType] -= 1;
 
 		// Transfer the NFT back to the function caller
@@ -343,11 +334,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		require(success, "Failed to transfer ether to seller");
 		// Transfer nft
 		ERC721(address(this)).safeTransferFrom(seller, msg.sender, tokenId);
-		// Update user owned nfts list
-		uint256 indexNFT = findIndexOfOwnedNFT(seller, tokenId);
-		userOwnedNFTs[seller][indexNFT] = userOwnedNFTs[seller][userOwnedNFTs[seller].length - 1];
-		userOwnedNFTs[seller].pop();
-		userOwnedNFTs[msg.sender].push(tokenId);
 		emit NFTPurchased(msg.sender, seller, tokenId, price);
 	}
 
@@ -389,8 +375,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		} else {
 			return 5;
 		}
-
-		// potentielle faille
 	}
 
 	// Let user choose the white or black color
@@ -399,15 +383,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		require(userColor[msg.sender] == 0, "Color already chosen");
 		userColor[msg.sender] = _color;
 		emit ColorChoosed(_color, msg.sender);
-	}
-
-	function findIndexOfOwnedNFT(address user, uint256 tokenId) private view returns (uint256) {
-		for (uint256 i = 0; i < userOwnedNFTs[user].length; i++) {
-			if (userOwnedNFTs[user][i] == tokenId) {
-				return i;
-			}
-		}
-		revert("NFT not found");
 	}
 
 	function isClub(bytes32 name, uint length) public pure returns (bool) {
@@ -498,7 +473,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		}
 		require(isKingHand, "Token must be a King's Hand");
 		uint256 pieceShare = kingHandsPrize / kingHands.length;
-		// tokenBalance[tokenId] += pieceShare; faire un transfer ici
+		payable(msg.sender).transfer(pieceShare);
 		kingHands[i] = kingHands[kingHands.length - 1];
 		kingHands.pop();
 	}
@@ -577,7 +552,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		// Black king
 		_mint(address(this), 0);
 		_setTokenURI(0, "");
-		userOwnedNFTs[address(this)].push(0);
 		pieceDetails[0].totalMinted++;
 		pieceDetails[0].blackMinted++;
 		totalMinted++;
@@ -588,7 +562,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		// White king
 		_mint(address(this), 1);
 		_setTokenURI(1, "");
-		userOwnedNFTs[address(this)].push(0);
 		pieceDetails[0].totalMinted++;
 		pieceDetails[0].whiteMinted++;
 		totalMinted++;
@@ -619,26 +592,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
         return false;
     }
 
-	function getUserOwnedNFTs(address user) public view returns (uint256[] memory) {
-		return userOwnedNFTs[user];
-	}
-
-	function getUserColor(address user) public view returns (uint8) {
-		return userColor[user];
-	}
-
-	function getIsStacked(uint256 _id) public view returns (bool) {
-		return isStacked[_id];
-	}
-	
-	function getBurnedCount(address user) public view returns (uint256) {
-		return burnedCount[user];
-	}
-
-	function getBurnedCounterCount(address user) public view returns (uint256) {
-		return burnedCounterCount[user];
-	}
-
 	function getShareTypeAccumulator(uint i, uint j) public view returns (uint256) {
 		return shareTypeAccumulator[i][j];
 	}
@@ -652,14 +605,27 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		return (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
 	}
 
-	// a terminer
-	// function auctionEnded(uint256 _price, address _newOwner, uint256 _tokenId) public {
-	// 	kingHandsPrize += _price;
-	// }
+	function getUserColor(address user) public view returns (uint8) {
+		return userColor[user];
+	}
+
+	function getIsStacked(uint256 _id) public view returns (bool) {
+		return isStacked[_id];
+	}
+
+	function getBurnedCount(address user) public view returns (uint256) {
+		return burnedCount[user];
+	}
+
+	function getBurnedCounterCount(address user) public view returns (uint256) {
+		return burnedCounterCount[user];
+	}
+
+	function getTotalMinted() public view returns (uint) {
+		return totalMinted;
+	}
+
+	function getCurrentSupply() public view returns (uint) {
+		return currentSupply;
+	}
 }
-
-// notes : pourquoi vendre sur le marché secondaire du contrat plutot que sur une marketplace type opensea si la cagnotte personnelle
-// a claim est trop faible comparé aux taxes ?
-
-// le cas ou tous les nfts sont mint puis on burn jusqu a 999
-// le cas ou il y a moins de 999 nft et ont mint tout jusqu'a atteindre 999 nft
