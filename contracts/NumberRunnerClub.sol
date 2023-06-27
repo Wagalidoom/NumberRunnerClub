@@ -588,7 +588,9 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		require(msg.value >= currentPrice, "The bid is too low.");
 		// Transfer nft
 		ERC721(address(this)).safeTransferFrom(address(this), msg.sender, _color-1);
+		
         emit KingBought(msg.sender, msg.value, _color);
+		kingHandsPrize += msg.value;
 		kingsInSale[_color-1] = false;
 		updateEpoch();
 	}
