@@ -17,7 +17,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	event KingHandBurned(uint256 tokenId);
 	event NFTBurned(address owner, uint256 tokenId);
 	event NFTMinted(address owner, uint256 tokenId);
-	event EpochUpdated(uint256 currentEpoch);
+	event globalSharesUpdated(uint256[6] shares);
+	event nftSharesUpdated(uint256 tokenId, uint256 shares);
 	event KingBought(address winner, uint256 amount, uint256 color);
 
 
@@ -216,7 +217,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 			}
 		}
 		currentSupply--;
-		nftShares[tokenId] = epoch;
+		nftShares[tokenId] = 0;
+		emit nftSharesUpdated(tokenId, 0);
 		payable(msg.sender).transfer(totalReward - taxAmount);
 		emit NFTBurned(msg.sender, tokenId);
 	}
@@ -252,7 +254,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		require(hasValidClub, "Doesn't have a valid club name");
 		typeStacked[_pieceType] += 1;
 		nftShares[tokenId] = shareTypeAccumulator[_pieceType][epoch];
-		updateEpoch();
+		emit nftSharesUpdated(tokenId, shareTypeAccumulator[_pieceType][epoch]);
 
 		if (typeStacked[_pieceType] == 1) {
 			// If it's the first piece of this type
@@ -291,6 +293,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		updateUnclaimedRewards(_pieceType, tokenId);
 		// update user and total stake count
 		nftShares[tokenId] = shareTypeAccumulator[_pieceType][epoch];
+		emit nftSharesUpdated(tokenId, shareTypeAccumulator[_pieceType][epoch]);
 	}
 
 	function listNFT(uint256 tokenId, uint256 price) public saleIsActive {
@@ -338,7 +341,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 			}
 		}
 
-		nftShares[tokenId] = epoch;
+		nftShares[tokenId] = 0;
+		emit nftSharesUpdated(tokenId, 0);
 		// Ensure the contract has enough balance to pay the seller
     	require(address(this).balance >= totalReward - taxAmount + price, "Not enough balance in contract to pay seller");
 
@@ -555,7 +559,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		uint256 totalReward = unclaimedRewards[tokenId];
 		// Reset reward to 0
 		unclaimedRewards[tokenId] = 0;
-		nftShares[tokenId] = epoch;
+		nftShares[tokenId] = 0;
+		emit nftSharesUpdated(tokenId, 0);
 		payable(msg.sender).transfer(totalReward);
 	}
 
@@ -592,7 +597,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
         emit KingBought(msg.sender, msg.value, _color);
 		kingHandsPrize += msg.value;
 		kingsInSale[_color-1] = false;
-		updateEpoch();
 	}
 
 	function getCurrentPrice() public view returns (uint256) {
@@ -611,7 +615,12 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		for (uint8 i = 0; i < 6; i++) {
 			shareTypeAccumulator[i].push(shareTypeAccumulator[i][epoch - 1]);
 		}
-		emit EpochUpdated(epoch);
+		// Emit shares event
+		uint256[6] memory currentShares;
+		for (uint8 i = 0; i < 6; i++) {
+			currentShares[i] = shareTypeAccumulator[i][epoch];
+		}
+		emit globalSharesUpdated(currentShares);
 	}
 
 	function updateUnclaimedRewards(uint8 _pieceType, uint256 tokenId) private {
@@ -654,7 +663,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	function getReward(uint256 tokenId) public view returns (uint) {
 		uint8 _pieceType = getPieceType(tokenId);
 		uint256 currentShare = shareTypeAccumulator[_pieceType][epoch];
-		if (currentShare > 0) {
+		if (currentShare > 0 && (nftShares[tokenId] > 0)) {
 			return (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
 		} else {
 			return 0;
