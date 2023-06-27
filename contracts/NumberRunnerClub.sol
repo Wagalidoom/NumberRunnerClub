@@ -18,6 +18,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	event NFTBurned(address owner, uint256 tokenId);
 	event NFTMinted(address owner, uint256 tokenId);
 	event EpochUpdated(uint256 currentEpoch);
+	event KingBought(address winner, uint256 amount, uint256 color);
+
 
 	struct PieceDetails {
 		uint256 maxSupply;
@@ -47,6 +49,12 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	uint256 public currentSupply = 0;
 	uint256 public userStacked = 0;
 	uint256 public currentEpoch = 0;
+	// King auction constants
+	uint256 public constant auctionDuration = 30 days;
+	uint256 public constant minPrice = 2 ether;
+	uint256 public constant maxPrice = 20000 ether;
+	bool[2] public kingsInSale = [true, true];
+	uint256 public auctionEndTime;
 	// L'epoch actuel
 	uint256 public epoch = 0;
 	uint256[] kingHands;
@@ -92,6 +100,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		}
 		updateEpoch();
 		spawnKings();
+		auctionEndTime = block.timestamp + auctionDuration;
 	}
 
 	modifier saleIsActive {
@@ -570,6 +579,28 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		currentSupply++;
 		typeStacked[0] += 1;
 		isStacked[1] = true;
+	}
+
+	function buyKing(uint256 _color) public payable {
+		require(block.timestamp <= auctionEndTime, "Auction already ended.");
+		require(kingsInSale[_color-1], "This king's color is already sold");
+		uint256 currentPrice = getCurrentPrice();
+		require(msg.value >= currentPrice, "The bid is too low.");
+		// Transfer nft
+		ERC721(address(this)).safeTransferFrom(address(this), msg.sender, _color-1);
+        emit KingBought(msg.sender, msg.value, _color);
+		updateEpoch();
+	}
+
+	function getCurrentPrice() public view returns (uint256) {
+		if (block.timestamp >= auctionEndTime) {
+			return minPrice;
+		} else {
+			uint256 timeElapsed = block.timestamp - (auctionEndTime - auctionDuration);
+			uint256 priceDifference = maxPrice - minPrice;
+			uint256 priceDrop = (priceDifference * timeElapsed) / auctionDuration;
+			return maxPrice - priceDrop;
+		}
 	}
 
 	function updateEpoch() private {
