@@ -562,6 +562,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		currentSupply++;
 		typeStacked[0] += 1;
 		isStacked[0] = true;
+		emit NFTMinted(address(this), 0);
+
 
 		// White king
 		_mint(address(this), 1);
@@ -572,6 +574,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		currentSupply++;
 		typeStacked[0] += 1;
 		isStacked[1] = true;
+		emit NFTMinted(address(this), 1);
 	}
 
 	function buyKing(uint256 _color) public payable {
