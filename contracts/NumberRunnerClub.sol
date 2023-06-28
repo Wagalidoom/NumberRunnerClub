@@ -65,7 +65,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 	ENS ens;
 	mapping(uint256 => bytes32) public nodeOfTokenId; // Mapping of tokenId to the corresponding ENS hash
-	mapping(bytes32 => uint256) public tokenIdOfNode; // Mapping of tokenId to the corresponding ENS hash
+	mapping(bytes32 => uint256) public tokenIdOfNode; // Mapping of ENS hash to the corresponding tokenId
 	mapping(uint256 => bytes32) public nameOfTokenId; // Mapping of tokenId to the corresponding ENS name
 	PieceDetails[6] pieceDetails;
 
