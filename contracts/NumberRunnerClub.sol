@@ -94,7 +94,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		ens = ENS(_ens);
 		prizePool = 0;
 		for (uint8 i = 0; i < 6; i++) {
-			shareTypeAccumulator[i].push(0);
+			shareTypeAccumulator[i].push(1);
 		}
 		
 		epoch += 1;
