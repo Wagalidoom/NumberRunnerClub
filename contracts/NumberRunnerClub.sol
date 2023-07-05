@@ -21,6 +21,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	event KingBought(address winner, uint256 amount, uint256 color);
 	event NFTStacked(uint256 tokenId, bytes32 ensName);
 	event NFTUnstacked(uint256 tokenId, bytes32 ensName);
+	event UpdateUnclaimedRewards(uint256 tokenId, uint256 rewards);
 
 	struct PieceDetails {
 		uint256 maxSupply;
@@ -182,6 +183,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		uint256 totalReward = unclaimedRewards[tokenId];
 		// Reset reward to 0
 		unclaimedRewards[tokenId] = 0;
+		emit UpdateUnclaimedRewards(tokenId, 0);
 		uint256 taxAmount = (totalReward * pieceDetails[_pieceType].burnTax) / 100;
 		// TODO revoir la redistribution pour gérer les arrondis
 		uint256 holdersTax = taxAmount / 2;
@@ -286,6 +288,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		nameOfTokenId[tokenId] = 0x0;
 
 		updateUnclaimedRewards(_pieceType, tokenId);
+		emit UpdateUnclaimedRewards(tokenId, unclaimedRewards[tokenId]);
 		// update user and total stake count
 		nftShares[tokenId] = shareTypeAccumulator[_pieceType][epoch];
 		emit nftSharesUpdated(tokenId, shareTypeAccumulator[_pieceType][epoch]);
@@ -321,7 +324,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		uint256 totalReward = unclaimedRewards[tokenId];
 		// Reset reward to 0
 		unclaimedRewards[tokenId] = 0;
-
+		emit UpdateUnclaimedRewards(tokenId, 0);
 		uint256 taxAmount = (totalReward * 16) / 100;
 
 		prizePool += taxAmount / 2;
@@ -547,6 +550,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		uint256 totalReward = unclaimedRewards[tokenId];
 		// Reset reward to 0
 		unclaimedRewards[tokenId] = 0;
+		emit UpdateUnclaimedRewards(tokenId, 0);
 		nftShares[tokenId] = 0;
 		emit nftSharesUpdated(tokenId, 0);
 		payable(msg.sender).transfer(totalReward);
@@ -656,16 +660,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 	function getNftShares(uint256 tokenId) public view returns (uint256) {
 		return nftShares[tokenId];
-	}
-
-	function getReward(uint256 tokenId) public view returns (uint) {
-		uint8 _pieceType = getPieceType(tokenId);
-		uint256 currentShare = shareTypeAccumulator[_pieceType][epoch];
-		if (currentShare > 0 && (nftShares[tokenId] > 0)) {
-			return (shareTypeAccumulator[_pieceType][epoch] - nftShares[tokenId]);
-		} else {
-			return 0;
-		}
 	}
 
 	function getUserColor(address user) public view returns (uint8) {
