@@ -193,8 +193,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 		updateShareType(holdersTax);
 
-		nodeOfTokenId[tokenId] = 0x0;
-		nameOfTokenId[tokenId] = 0x0;
+		// nodeOfTokenId[tokenId] = 0x0;
+		// nameOfTokenId[tokenId] = 0x0;
 
 		_burn(tokenId);
 		burnedCount[msg.sender]++;
