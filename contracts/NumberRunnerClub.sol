@@ -19,6 +19,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	event globalSharesUpdated(uint256[6] shares);
 	event nftSharesUpdated(uint256 tokenId, uint256 shares);
 	event KingBought(address winner, uint256 amount, uint256 color);
+	event NFTStacked(uint256 tokenId, bytes32 ensName);
+	event NFTUnstacked(uint256 tokenId, bytes32 ensName);
 
 	struct PieceDetails {
 		uint256 maxSupply;
@@ -173,7 +175,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 	function burn(uint256 tokenId) public saleIsActive {
 		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: burn caller is not owner nor approved");
-		require(nodeOfTokenId[tokenId] == 0x0, "Cannot burn a stacked token");
+		// require(nodeOfTokenId[tokenId] == 0x0, "Cannot burn a stacked token");
 		uint8 _pieceType = getPieceType(tokenId);
 		require(_pieceType != 0, "Cannot burn the King");
 		updateUnclaimedRewards(_pieceType, tokenId);
@@ -261,6 +263,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		nodeOfTokenId[tokenId] = node;
 		nameOfTokenId[tokenId] = name;
 		tokenIdOfNode[node] = tokenId;
+		emit NFTStacked(tokenId, name);
 	}
 
 	function unstack(uint256 tokenId) public {
@@ -279,6 +282,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 		nodeOfTokenId[tokenId] = 0x0;
 		tokenIdOfNode[node] = 0;
+		emit NFTUnstacked(tokenId, nameOfTokenId[tokenId]);	
 		nameOfTokenId[tokenId] = 0x0;
 
 		updateUnclaimedRewards(_pieceType, tokenId);
