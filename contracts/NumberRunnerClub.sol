@@ -615,25 +615,23 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	}
 
 	function updateShareType(uint256 _tax) private {
+		epoch += 1;
+
+		uint256[6] memory newShares;
 		for (uint8 i = 0; i < 6; i++) {
 			if (typeStacked[i] > 0) {
 				uint256 pieceShare = (_tax * pieceDetails[i].percentage) / 1000;
-				if (typeStacked[i] > 0) {
-					shareTypeAccumulator[i][epoch] = shareTypeAccumulator[i][epoch - 1] + pieceShare / typeStacked[i];
-				}
-
-				epoch += 1;
-				for (uint8 j = 0; j < 6; j++) {
-					shareTypeAccumulator[j].push(shareTypeAccumulator[j][epoch - 1]);
-				}
-				// Emit shares event
-				uint256[6] memory currentShares;
-				for (uint8 j = 0; j < 6; j++) {
-					currentShares[j] = shareTypeAccumulator[j][epoch];
-				}
-				emit globalSharesUpdated(currentShares);
+				newShares[i] = shareTypeAccumulator[i][epoch - 1] + pieceShare / typeStacked[i];
+			} else {
+				newShares[i] = shareTypeAccumulator[i][epoch - 1];
 			}
 		}
+
+		for (uint8 i = 0; i < 6; i++) {
+			shareTypeAccumulator[i].push(newShares[i]);
+		}
+
+		emit globalSharesUpdated(newShares);
 	}
 
 	function updateUnclaimedRewards(uint8 _pieceType, uint256 tokenId) private {

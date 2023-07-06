@@ -2,97 +2,143 @@ const NumberRunnerClub = artifacts.require("NumberRunnerClub");
 const ethers = require("ethers");
 const namehash = require('eth-ens-namehash');
 
+const userA = "0x061b9daBbAa2D6bbB1f6098E95a7F43F9322cAdA";
+const userB = "0xF5EF21D31316AE4147365Fa71b4e79FE66B309a4";
+const contractAddress = "0xc44Dd39E7aE5B460a66Ec1A7c418F157C8F1290F";
+
+const chooseColor = async (instance, colorIndex, fromAddress) => {
+  await instance.chooseColor(colorIndex, { from: fromAddress });
+  console.log(`Chose color ${colorIndex}`);
+};
+
+
+const mintToken = async (instance, fromAddress, value) => {
+  const _Mint = await instance.mint(5, 0, { from: fromAddress, value });
+  const id = _Mint.logs[0].args.tokenId.words[0]
+  console.log(`Minted token ${id}`);
+  return id;
+};
+
+const burnToken = async (instance, tokenId, fromAddress) => {
+  await instance.burn(tokenId, { from: fromAddress });
+  console.log(`Burned token ${tokenId}`);
+};
+
+
+const approveToken = async (instance, tokenId, toAddress, fromAddress) => {
+  await instance.approve(toAddress, tokenId, { from: fromAddress });
+  console.log(`Approved token ${tokenId}`);
+};
+
+const stackToken = async (instance, domain, tokenId, fromAddress) => {
+  await instance.stack(namehash.hash(domain), web3.utils.asciiToHex(domain), tokenId, { from: fromAddress });
+  console.log(`Stacked token ${tokenId}`);
+};
+
+const unstackToken = async (instance, tokenId, fromAddress) => {
+  await instance.unstack(tokenId, { from: fromAddress });
+  console.log(`Unstacked token ${tokenId}`);
+};
+
+const listToken = async (instance, tokenId, price, fromAddress) => {
+  await instance.listNFT(tokenId, price, { from: fromAddress });
+  console.log(`Listed token ${tokenId}`);
+};
+
+const buyToken = async (instance, tokenId, fromAddress, value) => {
+  await instance.buyNFT(tokenId, { from: fromAddress, value: value });
+  console.log(`Bought token ${tokenId}`);
+};
+
+const getPieceType = (nftId) => {
+  if (nftId >= 0 && nftId < 2) {
+    return 0;
+  } else if (nftId >= 2 && nftId < 12) {
+    return 1;
+  } else if (nftId >= 12 && nftId < 62) {
+    return 2;
+  } else if (nftId >= 62 && nftId < 162) {
+    return 3;
+  } else if (nftId >= 162 && nftId < 362) {
+    return 4;
+  } else {
+    return 5;
+  }
+};
+
+const getUnclaimedRewards = async (instance, tokenId) => {
+  const unclaimedRewards = await instance.unclaimedRewards(tokenId);
+  const nftShares = await instance.getNftShares(tokenId);
+
+  const pieceType = getPieceType(tokenId);
+  const size = await instance.getShareTypeAccumulatorSize();
+  const [rows, cols] = [size[0].toNumber(), size[1].toNumber()];
+
+  // Now we only fetch the last value of shareTypeAccumulator for the relevant type
+  const lastValue = await instance.getShareTypeAccumulator(pieceType, cols-1);
+  console.log(unclaimedRewards.toNumber(), lastValue.toNumber(), nftShares.toNumber())
+  const totalRewards = unclaimedRewards.toNumber() + lastValue.toNumber() - nftShares.toNumber();
+  console.log(`Total rewards for token ${tokenId}: ${totalRewards}`);
+};
+
+const displayShareTypeAccumulator = async (instance) => {
+  // get size of shareTypeAccumulator
+  const size = await instance.getShareTypeAccumulatorSize();
+  const [rows, cols] = [size[0].toNumber(), size[1].toNumber()];
+
+  // Define token types
+  const tokenTypes = ["King", "Queen", "Rook", "Knight", "Bishop", "Pawn"];
+
+  // Header
+  console.log("Epoch | Share King | Share Queen | Share Rook | Share Knight | Share Bishop | Share Pawn");
+
+  // iterate over each column (epoch)
+  for(let col = 0; col < cols; col++) {
+    let epochInfo = `Epoch ${col} | `;
+
+    // iterate over each type
+    for(let type = 0; type <= 5; type++) {
+      const value = await instance.getShareTypeAccumulator(type, col);
+      epochInfo += `Share ${tokenTypes[type]}: ${value} | `;
+    }
+
+    // Print info of the epoch
+    console.log(epochInfo);
+  }
+};
+
+
+
+
 module.exports = async function(callback) {
   try {
     console.log(ethers.version)
     const instance = await NumberRunnerClub.deployed();
-    // await instance.chooseColor(1, {from: "0x4b6bb23CFc64dD3C5aaD58756A1C3628feF63F97"})
-    // await instance.chooseColor(1, {from: "0x9c4C25C223266e56B4ba5B9AB08163427e58B685"})
+    const balance = await web3.eth.getBalance(contractAddress);
+    console.log("Deployed ! Contract balance : ",balance)
+    await displayShareTypeAccumulator(instance);
+    // await chooseColor(instance, 1, userA);
+    // await chooseColor(instance, 2, userB);
+    const tokenId = await mintToken(instance, userA, 20000000000000);
+    await approveToken(instance, tokenId, contractAddress, userA);
+    await stackToken(instance, "1281.eth", tokenId, userA);
+    const tokenUserB = await mintToken(instance, userB, 20000000000000);
+    await getUnclaimedRewards(instance, tokenId);
+    await unstackToken(instance, tokenId, userA);
+    await approveToken(instance, tokenId, contractAddress, userA);
+    await listToken(instance, tokenId, 15000, userA);
+    await buyToken(instance, tokenId, userB, 15000);
 
-    // User B minte et stack le token
-    const _Mint = await instance.mint(5,0, {from: "0x9c4C25C223266e56B4ba5B9AB08163427e58B685", value: web3.utils.toWei('0.21', 'ether')});
-    console.log("Gas used MINT :", _Mint.receipt.gasUsed);
-    id = _Mint.logs[0].args.tokenId.words[0]
-    console.log(`Minted token ${id}`);
-
-    await instance.approve("0x373a0F69AD83b88f515c0363FC0d319384A4199a", id, {from: "0x9c4C25C223266e56B4ba5B9AB08163427e58B685"});
-    console.log("approved")
-    console.log(`NFT Shares : ${await instance.getNftShares(id)}`)
-    const _Mint1U1 = await instance.mint(5,0, {from: "0x4b6bb23CFc64dD3C5aaD58756A1C3628feF63F97", value: web3.utils.toWei('0.21', 'ether')});
-
-    const _Stake = await instance.stack(namehash.hash("127.eth"), web3.utils.asciiToHex("127.eth"), id, {from: "0x9c4C25C223266e56B4ba5B9AB08163427e58B685"});
-    console.log(`Staked token ${id}`);
-    console.log(`NFT Shares : ${await instance.getNftShares(id)}`)
-
-    const _Mint2U2 = await instance.mint(5,0, {from: "0x9c4C25C223266e56B4ba5B9AB08163427e58B685", value: web3.utils.toWei('0.21', 'ether')});
-    const _Mint2U1 = await instance.mint(5,0, {from: "0x4b6bb23CFc64dD3C5aaD58756A1C3628feF63F97", value: web3.utils.toWei('0.21', 'ether')});
-
-    const unstack = await instance.unstack(id, {from: "0x9c4C25C223266e56B4ba5B9AB08163427e58B685"});
-    console.log(`Unstaked token ${id}`)
-    console.log(`NFT Shares : ${await instance.getNftShares(id)}`)
-
-
-    for (let i = 0; i < 8; i++) {
-      // User A minte et liste le token
-      const _Mint = await instance.mint(5,0, {from: "0x4b6bb23CFc64dD3C5aaD58756A1C3628feF63F97", value: web3.utils.toWei('0.21', 'ether')});
-      console.log("Gas used MINT :", _Mint.receipt.gasUsed);
-      id = _Mint.logs[0].args.tokenId.words[0]
-      console.log(`Minted token ${id}`);
-
-      await instance.approve("0x373a0F69AD83b88f515c0363FC0d319384A4199a", id);
-      const _Stake = await instance.stack(namehash.hash("121.eth"), web3.utils.asciiToHex("121.eth"), id);
-      console.log(`Staked token ${id}`);
-
-      const unstack = await instance.unstack(id, {from: "0x4b6bb23CFc64dD3C5aaD58756A1C3628feF63F97"});
-      console.log(`Unstaked token ${id}`)
-      // const list = await instance.listNFT(id, 1, {from: "0x4b6bb23CFc64dD3C5aaD58756A1C3628feF63F97"});
-      // console.log(`listed token ${id}`)
-      // await instance.approve("0x6D53CF1b411C942B35F4e41D2caDE60f94E5e99b", id);
-      // const buy = await instance.buyNFT(id, {from: "0x2Edc4da491238b6D3AD53b1FE9b5Af78f1056F88", value: 2})
-      // console.log(`BOUGHT token ${id}`)
-      // let size = await instance.getShareTypeAccumulatorSize();
-      // for (let i = 0; i < size[0]; i++) {
-      //       for (let j = 0; j < size[1]; j++) {
-      //           let element = await instance.getShareTypeAccumulator(i, j);
-      //           console.log(`totalSharePerToken[${i}][${j}] = ${element}`);
-      //       }
-      //   }
-
-      
-    }
-
-    // const unstack = await instance.unstack(362, {from: "0xFeCec56CAC42117f8a6180CD83E890De54c3e7ED"});
-    // console.log(unstack)
-    // console.log("UNSTACKED 362")
-    // let size = await instance.getShareTypeAccumulatorSize();
-    // for (let i = 0; i < size[0]; i++) {
-    //     for (let j = 0; j < size[1]; j++) {
-    //         let element = await instance.getShareTypeAccumulator(i, j);
-    //         console.log(`totalSharePerToken[${i}][${j}] = ${element}`);
-    //     }
-    // }
-
-    // console.log("AVANT LE CLAMING : ", (await instance.unclaimedRewards(362)).toString());
-    // console.log((await web3.eth.getBalance(instance.address)).toString());
-    // const _claim = await instance.claimPrivatePrize(362, {from: "0xFeCec56CAC42117f8a6180CD83E890De54c3e7ED"});
-    // console.log(_claim);
-    // console.log("CLAIMED !");
-    // console.log("APRES LE CLAMING : ", (await instance.unclaimedRewards(362)).toString());
-    // console.log((await web3.eth.getBalance(instance.address)).toString());
-
+    // Tests debugging
+    console.log("\nDEBUG\n")
+    const tokenDebug = await mintToken(instance, userA, 20000000000000);
+    await approveToken(instance, tokenDebug, contractAddress, userA);
+    await listToken(instance, tokenDebug, web3.utils.toWei('10', 'ether'), userA);
+    // await burnToken(instance, tokenDebug, userA);
+    // await burnToken(instance, tokenUserB, userB)
     callback();
   } catch (error) {
     console.error(error);
     callback(error);
   }
 };
-
-// await instance.approve(instance.address, id, {from: "0x5f39D68caFb8B43d194792d622db6ef71d6ABdE8"});
-//       const _listing = await instance.listNFT(id, 120, {from: "0x5f39D68caFb8B43d194792d622db6ef71d6ABdE8"});
-//       console.log(_listing);
-//       console.log("LISTED !")
-//       // User B Buy le token
-//       const buyNFT = await instance.buyNFT(id, {from: "0xdd1B8d541E506179a3AdBF94729598C46930EDC4", value : web3.utils.toWei('0.1', 'ether')});
-//       console.log(buyNFT);
-//       console.log("BOUGHT !")
-//       console.log(await instance.ownerOf(id));
