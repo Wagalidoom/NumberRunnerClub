@@ -168,7 +168,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		}
 
 		// Add the transaction fee to the piece's balance
-		updateShareType(10000000000000 * 1000);
+		updateShareType(10000000000000);
 
 		emit NFTMinted(msg.sender, newItemId);
 		return newItemId;
