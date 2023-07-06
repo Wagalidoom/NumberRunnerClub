@@ -197,8 +197,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 		updateShareType(holdersTax);
 
-		// nodeOfTokenId[tokenId] = 0x0;
-		// nameOfTokenId[tokenId] = 0x0;
+		nodeOfTokenId[tokenId] = 0x0;
+		nameOfTokenId[tokenId] = 0x0;
 
 		_burn(tokenId);
 		burnedCount[msg.sender]++;
@@ -217,13 +217,16 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		currentSupply--;
 		nftShares[tokenId] = 0;
 		emit nftSharesUpdated(tokenId, 0);
-		payable(msg.sender).transfer(totalReward - taxAmount);
+		if (totalReward > 0) {
+			require(address(this).balance >= totalReward - taxAmount, "Not enough balance in contract to send rewards");
+			payable(msg.sender).transfer(totalReward - taxAmount);
+		}
 		emit NFTBurned(msg.sender, tokenId);
 	}
 
 	function stack(bytes32 node, bytes32 name, uint256 tokenId) public {
 		// Ensure the function caller owns the ENS node
-		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
+		// require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 		require(nodeOfTokenId[tokenId] == 0x0, "Token is already stacked");
 		require(tokenIdOfNode[node] == 0, "ENS name is already used");
 		// Ensure the function caller owns the NFT
@@ -276,7 +279,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		bytes32 node = nodeOfTokenId[tokenId];
 		uint8 _pieceType = getPieceType(tokenId);
 		require(tokenIdOfNode[node] != 0, "ENS not used yet");
-		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
+		// require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 		typeStacked[_pieceType] -= 1;
 
 		// Transfer the NFT back to the function caller
@@ -334,11 +337,16 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 		nftShares[tokenId] = 0;
 		emit nftSharesUpdated(tokenId, 0);
-		// Ensure the contract has enough balance to pay the seller
-		require(address(this).balance >= totalReward - taxAmount + price, "Not enough balance in contract to pay seller");
+		bool success;
+		if (totalReward > 0) {
+			// Ensure the contract has enough balance to pay the seller
+			require(address(this).balance >= totalReward - taxAmount + price, "Not enough balance in contract to pay seller");
+			(success, ) = payable(seller).call{ value: totalReward - taxAmount + price }("");
+		} else {
+			require(address(this).balance >= price, "Not enough balance in contract to pay price seller");
+			(success, ) = payable(seller).call{ value: price }("");
+		}
 
-		// Use call instead of transfer to send ether
-		(bool success, ) = payable(seller).call{ value: totalReward - taxAmount + price }("");
 		require(success, "Failed to transfer ether to seller");
 		// Transfer nft
 		ERC721(address(this)).safeTransferFrom(seller, msg.sender, tokenId);
@@ -553,7 +561,10 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		emit UpdateUnclaimedRewards(tokenId, 0);
 		nftShares[tokenId] = 0;
 		emit nftSharesUpdated(tokenId, 0);
-		payable(msg.sender).transfer(totalReward);
+		if (totalReward > 0){
+			require(address(this).balance >= totalReward, "Not enough balance in contract to send rewards");
+			payable(msg.sender).transfer(totalReward);
+		}
 	}
 
 	function spawnKings() public {
