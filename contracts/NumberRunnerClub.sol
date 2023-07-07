@@ -1,14 +1,68 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "abdk-libraries-solidity/ABDKMath64x64.sol";
 import "@ensdomains/ens-contracts/contracts/registry/ENS.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
+contract KingAuction {
+	using ABDKMath64x64 for int128;
+
+	event KingBought(address winner, uint256 amount, uint256 color);
+
+	uint256 auctionEndTime;
+	uint256 auctionDuration;
+	uint256 minPrice;
+
+	constructor(uint256 endTime, uint256 duration, uint256 minAuctionPrice) {
+		auctionEndTime = endTime;
+		auctionDuration = duration;
+		minPrice = minAuctionPrice;
+	}
+
+	function buyKing(uint256 _color, bool[2] memory kingsInSale, uint256 kingHandsPrize) public payable {
+		require(block.timestamp <= auctionEndTime, "Auction already ended.");
+		require(kingsInSale[_color - 1], "This king's color is already sold");
+		int128 currentPrice = getCurrentPrice();
+		int128 msgValueInt128 = ABDKMath64x64.fromUInt(msg.value);
+		int128 msgValue = ABDKMath64x64.mul(msgValueInt128, ABDKMath64x64.fromUInt(10000));
+		require(msgValue >= currentPrice, "The bid is too low.");
+		// Transfer nft
+		ERC721(address(this)).safeTransferFrom(address(this), msg.sender, _color - 1);
+
+		emit KingBought(msg.sender, msg.value, _color);
+		kingHandsPrize += msg.value;
+		kingsInSale[_color - 1] = false;
+	}
+
+	function getCurrentPrice() public view returns (int128) {
+		if (block.timestamp >= auctionEndTime) {
+			return ABDKMath64x64.fromUInt(minPrice);
+		} else {
+			uint256 timeElapsed = block.timestamp - (auctionEndTime - auctionDuration);
+
+			int128 negOneThird = ABDKMath64x64.divi(-1, 3);
+			int128 one = ABDKMath64x64.fromUInt(1);
+
+			int128 _days = ABDKMath64x64.divu(timeElapsed, 60 * 60 * 24);
+			
+			int128 x64x64 = ABDKMath64x64.fromUInt(_days.toUInt());
+
+			int128 innerCalculation = ABDKMath64x64.add(ABDKMath64x64.mul(negOneThird, x64x64), one);
+
+			int128 result = ABDKMath64x64.exp_2(innerCalculation);
+
+			return result;
+		}
+	}
+}
+
 // TODO add system of burn/sell before claiming personal prize
 contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable, ReentrancyGuard {
+
 	event NFTPurchased(address buyer, address seller, uint256 tokenId, uint256 price);
 	event ColorChoosed(uint8 color, address user);
 	event NFTListed(address seller, uint256 tokenId, uint256 price);
@@ -18,7 +72,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	event NFTMinted(address owner, uint256 tokenId);
 	event globalSharesUpdated(uint256[6] shares);
 	event nftSharesUpdated(uint256 tokenId, uint256 shares);
-	event KingBought(address winner, uint256 amount, uint256 color);
 	event NFTStacked(uint256 tokenId, bytes32 ensName);
 	event NFTUnstacked(uint256 tokenId, bytes32 ensName);
 	event UpdateUnclaimedRewards(uint256 tokenId, uint256 rewards);
@@ -45,6 +98,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		bytes rawTx;
 		mapping(uint256 => bool) voted;
 	}
+
+	KingAuction public kingAuction;
 
 	uint256 public constant MAX_NFT_SUPPLY = 10000;
 	uint256 public totalMinted = 0;
@@ -113,6 +168,9 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 		spawnKings();
 		auctionEndTime = block.timestamp + auctionDuration;
+
+
+		kingAuction = new KingAuction(auctionEndTime, auctionDuration, minPrice);
 	}
 
 	modifier saleIsActive() {
@@ -443,6 +501,14 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		recentRequestId = requestRandomness(10000000, 15, 10);
 	}
 
+	function buyKing(uint256 _color) public payable {
+		kingAuction.buyKing(_color, kingsInSale, kingHandsPrize);
+	}
+
+	function getCurrentPrice() public view {
+		kingAuction.getCurrentPrice();
+	}
+
 	function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
 		require(!isKingsHandSet, "King's Hands already generated");
 		require(requestId == recentRequestId, "Wrong request ID");
@@ -588,30 +654,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		currentSupply++;
 		typeStacked[0] += 1;
 		emit NFTMinted(address(this), 1);
-	}
-
-	function buyKing(uint256 _color) public payable {
-		require(block.timestamp <= auctionEndTime, "Auction already ended.");
-		require(kingsInSale[_color - 1], "This king's color is already sold");
-		uint256 currentPrice = getCurrentPrice();
-		require(msg.value >= currentPrice, "The bid is too low.");
-		// Transfer nft
-		ERC721(address(this)).safeTransferFrom(address(this), msg.sender, _color - 1);
-
-		emit KingBought(msg.sender, msg.value, _color);
-		kingHandsPrize += msg.value;
-		kingsInSale[_color - 1] = false;
-	}
-
-	function getCurrentPrice() public view returns (uint256) {
-		if (block.timestamp >= auctionEndTime) {
-			return minPrice;
-		} else {
-			uint256 timeElapsed = block.timestamp - (auctionEndTime - auctionDuration);
-			uint256 priceDifference = maxPrice - minPrice;
-			uint256 priceDrop = (priceDifference * timeElapsed) / auctionDuration;
-			return maxPrice - priceDrop;
-		}
 	}
 
 	function updateShareType(uint256 _tax) private {
