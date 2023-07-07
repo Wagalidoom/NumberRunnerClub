@@ -505,8 +505,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		kingAuction.buyKing(_color, kingsInSale, kingHandsPrize);
 	}
 
-	function getCurrentPrice() public view {
-		kingAuction.getCurrentPrice();
+	function getCurrentPrice() public view returns (int128) {
+		return kingAuction.getCurrentPrice();
 	}
 
 	function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {

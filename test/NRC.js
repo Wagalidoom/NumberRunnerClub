@@ -1,6 +1,7 @@
 const NumberRunnerClub = artifacts.require("NumberRunnerClub");
 const ethers = require("ethers");
 const namehash = require('eth-ens-namehash');
+const BigNumber = require('bignumber.js');
 
 const userA = "0x061b9daBbAa2D6bbB1f6098E95a7F43F9322cAdA";
 const userB = "0xF5EF21D31316AE4147365Fa71b4e79FE66B309a4";
@@ -114,28 +115,33 @@ module.exports = async function(callback) {
   try {
     console.log(ethers.version)
     const instance = await NumberRunnerClub.deployed();
-    const balance = await web3.eth.getBalance(contractAddress);
-    console.log("Deployed ! Contract balance : ",balance)
-    await displayShareTypeAccumulator(instance);
-    // await chooseColor(instance, 1, userA);
-    // await chooseColor(instance, 2, userB);
-    const tokenId = await mintToken(instance, userA, 20000000000000);
-    await approveToken(instance, tokenId, contractAddress, userA);
-    await stackToken(instance, "1281.eth", tokenId, userA);
-    const tokenUserB = await mintToken(instance, userB, 20000000000000);
-    await getUnclaimedRewards(instance, tokenId);
-    await unstackToken(instance, tokenId, userA);
-    await approveToken(instance, tokenId, contractAddress, userA);
-    await listToken(instance, tokenId, 15000, userA);
-    await buyToken(instance, tokenId, userB, 15000);
+    // const balance = await web3.eth.getBalance(contractAddress);
+    // console.log("Deployed ! Contract balance : ",balance)
+    // await displayShareTypeAccumulator(instance);
+    // // await chooseColor(instance, 1, userA);
+    // // await chooseColor(instance, 2, userB);
+    // const tokenId = await mintToken(instance, userA, 20000000000000);
+    // await approveToken(instance, tokenId, contractAddress, userA);
+    // await stackToken(instance, "1281.eth", tokenId, userA);
+    // const tokenUserB = await mintToken(instance, userB, 20000000000000);
+    // await getUnclaimedRewards(instance, tokenId);
+    // await unstackToken(instance, tokenId, userA);
+    // await approveToken(instance, tokenId, contractAddress, userA);
+    // await listToken(instance, tokenId, 15000, userA);
+    // await buyToken(instance, tokenId, userB, 15000);
 
-    // Tests debugging
-    console.log("\nDEBUG\n")
-    const tokenDebug = await mintToken(instance, userA, 20000000000000);
-    await approveToken(instance, tokenDebug, contractAddress, userA);
-    await listToken(instance, tokenDebug, web3.utils.toWei('10', 'ether'), userA);
+    // // Tests debugging
+    // console.log("\nDEBUG\n")
+    // const tokenDebug = await mintToken(instance, userA, 20000000000000);
+    // await approveToken(instance, tokenDebug, contractAddress, userA);
+    // await listToken(instance, tokenDebug, web3.utils.toWei('10', 'ether'), userA);
     // await burnToken(instance, tokenDebug, userA);
     // await burnToken(instance, tokenUserB, userB)
+    const currentPrice = await instance.getCurrentPrice();
+    const bigNumberPrice = new BigNumber(currentPrice);
+    const priceNumber = bigNumberPrice.toNumber();
+
+    console.log(priceNumber/2**64);
     callback();
   } catch (error) {
     console.error(error);
