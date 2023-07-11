@@ -39,18 +39,19 @@ contract KingAuction {
 	}
 
 	function getCurrentPrice() public view returns (int128) {
-		if (block.timestamp >= auctionEndTime) {
+		uint256 ts = block.timestamp;
+		if (ts >= auctionEndTime) {
 			return ABDKMath64x64.fromUInt(minPrice);
 		} else {
-			uint256 timeElapsed = block.timestamp - (auctionEndTime - auctionDuration);
+			uint256 timeElapsed = ts - (auctionEndTime - auctionDuration);
+			int128 _secondsElapsed = ABDKMath64x64.fromUInt(timeElapsed);
+			int128 _secondsInDay = ABDKMath64x64.fromUInt(60 * 60 * 24);
+			int128 _days = ABDKMath64x64.div(_secondsElapsed, _secondsInDay);
+			int128 x64x64 = _days;
 
 			int128 negOneThird = ABDKMath64x64.divi(-1, 3);
 			int128 one = ABDKMath64x64.fromUInt(1);
-
-			int128 _days = ABDKMath64x64.divu(timeElapsed, 60 * 60 * 24);
 			
-			int128 x64x64 = ABDKMath64x64.fromUInt(_days.toUInt());
-
 			int128 innerCalculation = ABDKMath64x64.add(ABDKMath64x64.mul(negOneThird, x64x64), one);
 
 			int128 result = ABDKMath64x64.exp_2(innerCalculation);
