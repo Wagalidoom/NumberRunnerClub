@@ -644,6 +644,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		currentSupply++;
 		typeStacked[0] += 1;
 		emit NFTMinted(address(this), 0);
+		nftShares[0] =  1;
+		emit nftSharesUpdated(0, 1);
 
 
 		// White king
@@ -655,6 +657,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		currentSupply++;
 		typeStacked[0] += 1;
 		emit NFTMinted(address(this), 1);
+		nftShares[1] =  1;
+		emit nftSharesUpdated(1, 1);
 	}
 
 	function updateShareType(uint256 _tax) private {
