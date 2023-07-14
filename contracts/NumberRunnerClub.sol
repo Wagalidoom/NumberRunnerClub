@@ -120,7 +120,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		_;
 	}
 
-	// TODO à qui redistribuer les frais de mint sur le premier mint et/ou quand il n'y a pas de nft stacké
 	function mint(uint8 _pieceType, uint256 _stackedPiece) public payable returns (uint256) {
 		require(msg.value >= 20000000000000, "User must send at least 0.2 eth for minting a token");
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
@@ -176,6 +175,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 	function burn(uint256 tokenId) public saleIsActive {
 		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: burn caller is not owner nor approved");
+		require(!isForSale(tokenId), "This NFT is already on sale");
 		// require(nodeOfTokenId[tokenId] == 0x0, "Cannot burn a stacked token");
 		uint8 _pieceType = getPieceType(tokenId);
 		require(_pieceType != 0, "Cannot burn the King");
@@ -224,6 +224,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	function stack(bytes32 node, bytes32 name, uint256 tokenId) public {
 		// Ensure the function caller owns the ENS node
 		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
+		require(!isForSale(tokenId), "This NFT is already on sale");
 		require(nodeOfTokenId[tokenId] == 0x0, "Token is already stacked");
 		require(tokenIdOfNode[node] == 0, "ENS name is already used");
 		// Ensure the function caller owns the NFT
@@ -678,11 +679,15 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		return burnedCounterCount[user];
 	}
 
-	function getTotalMinted() public view returns (uint) {
+	function getTotalMinted() public view returns (uint256) {
 		return totalMinted;
 	}
 
-	function getCurrentSupply() public view returns (uint) {
+	function getCurrentSupply() public view returns (uint256) {
 		return currentSupply;
+	}
+
+	function getPrizePool() public view returns (uint256) {
+		return prizePool;
 	}
 }
