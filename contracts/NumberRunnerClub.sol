@@ -115,7 +115,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	uint256 public auctionEndTime;
 	// L'epoch actuel
 	uint256 public epoch = 0;
-	uint256[] kingHands;
+	uint256[10] kingHands;
 	bool isKingsHandSet = false;
 	uint256 public recentRequestId;
 	uint256 prizePool;
@@ -196,7 +196,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		// No restriction for minting Pawn
 		if (_pieceType != 5) {
 			bool hasRequiredClubStacked = false;
-			for (uint i = 7; i < pieceDetails[_pieceType].clubRequirement; i++) {
+			for (uint i = 7; i <= pieceDetails[_pieceType].clubRequirement; i++) {
 				bytes32 node = nodeOfTokenId[_stackedPiece];
 				bytes32 name = nameOfTokenId[_stackedPiece];
 				require(ens.owner(node) == msg.sender, "Not owner of ENS node");
@@ -263,15 +263,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		burnedCount[msg.sender]++;
 		if (!isColorValid(tokenId)) {
 			burnedCounterCount[msg.sender]++;
-		}
-		if (getPieceType(tokenId) == 5) {
-			for (uint256 i = 0; i < kingHands.length; i++) {
-				if (tokenId == kingHands[i]) {
-					kingHands[i] = kingHands[kingHands.length - 1];
-					kingHands.pop();
-					emit KingHandBurned(tokenId);
-				}
-			}
 		}
 		currentSupply--;
 		nftShares[tokenId] = 0;
@@ -482,7 +473,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	}
 
 	function revealKingHand(uint256 tokenId) public payable returns (bool) {
-		require(msg.value > 200000000000000000); // reveal price fixed at 0.2 eth
+		require(msg.value > 10000000000000); // reveal price fixed at 0.2 eth
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		require(getPieceType(tokenId) == 5, "Token must be a Pawn");
 		// require(isStacked[tokenId] == false, "Token must be unstack");
@@ -549,17 +540,16 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		uint256 i = 0;
 		bool isKingHand = false;
-		for (i; i < kingHands.length; i++) {
+		for (i; i < 10; i++) {
 			if (tokenId == kingHands[i]) {
 				isKingHand = true;
 				break;
 			}
 		}
 		require(isKingHand, "Token must be a King's Hand");
-		uint256 pieceShare = kingHandsPrize / kingHands.length;
+		uint256 pieceShare = kingHandsPrize / 10;
+		burn(tokenId);
 		payable(msg.sender).transfer(pieceShare);
-		kingHands[i] = kingHands[kingHands.length - 1];
-		kingHands.pop();
 	}
 
 	function vote(uint256 proposalId, uint256 tokenId, bool voteFor) public {
