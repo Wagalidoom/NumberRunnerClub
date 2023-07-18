@@ -206,9 +206,9 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 				}
 			}
 			require(hasRequiredClubStacked, "Doesn't have a required club stacked");
-			require(burnedCounterCount[msg.sender] > pieceDetails[_pieceType].burnRequirement, "Doesn't burn enough piece");
+			require(burnedCount[msg.sender] >= pieceDetails[_pieceType].burnRequirement, "Doesn't burn enough piece");
 			if (pieceDetails[_pieceType].opponentColorBurnRequirement > 0) {
-				require(burnedCounterCount[msg.sender] > pieceDetails[_pieceType].opponentColorBurnRequirement, "Doesn't burn enough opponent piece");
+				require(burnedCounterCount[msg.sender] >= pieceDetails[_pieceType].opponentColorBurnRequirement, "Doesn't burn enough opponent piece");
 			}
 		}
 
