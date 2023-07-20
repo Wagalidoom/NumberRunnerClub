@@ -51,7 +51,7 @@ contract KingAuction {
 
 			int128 negOneThird = ABDKMath64x64.divi(-1, 3);
 			int128 one = ABDKMath64x64.fromUInt(1);
-			
+
 			int128 innerCalculation = ABDKMath64x64.add(ABDKMath64x64.mul(negOneThird, x64x64), one);
 
 			int128 result = ABDKMath64x64.exp_2(innerCalculation);
@@ -63,7 +63,6 @@ contract KingAuction {
 
 // TODO add system of burn/sell before claiming personal prize
 contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable, ReentrancyGuard {
-
 	event NFTPurchased(address buyer, address seller, uint256 tokenId, uint256 price);
 	event ColorChoosed(uint8 color, address user);
 	event NFTListed(address seller, uint256 tokenId, uint256 price);
@@ -155,7 +154,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		for (uint8 i = 0; i < 6; i++) {
 			shareTypeAccumulator[i].push(1);
 		}
-		
+
 		epoch += 1;
 		for (uint8 i = 0; i < 6; i++) {
 			shareTypeAccumulator[i].push(shareTypeAccumulator[i][epoch - 1]);
@@ -169,7 +168,6 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 		spawnKings();
 		auctionEndTime = block.timestamp + auctionDuration;
-
 
 		kingAuction = new KingAuction(auctionEndTime, auctionDuration, minPrice);
 	}
@@ -235,7 +233,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	function burn(uint256 tokenId) public saleIsActive {
 		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: burn caller is not owner nor approved");
 		require(!isForSale(tokenId), "This NFT is already on sale");
-		// require(nodeOfTokenId[tokenId] == 0x0, "Cannot burn a stacked token");
+		require(nodeOfTokenId[tokenId] == 0x0, "Cannot burn a stacked token");
 		uint8 _pieceType = getPieceType(tokenId);
 		require(_pieceType != 0, "Cannot burn the King");
 		updateUnclaimedRewards(_pieceType, tokenId);
@@ -295,10 +293,11 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 						break;
 					}
 				}
-			}
-			if (isClub(name, i)) {
-				hasValidClub = true;
-				break;
+			} else {
+				if (isClub(name, i)) {
+					hasValidClub = true;
+					break;
+				}
 			}
 		}
 		require(hasValidClub, "Doesn't have a valid club name");
@@ -338,7 +337,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 		nodeOfTokenId[tokenId] = 0x0;
 		tokenIdOfNode[node] = 0;
-		emit NFTUnstacked(tokenId, nameOfTokenId[tokenId]);	
+		emit NFTUnstacked(tokenId, nameOfTokenId[tokenId]);
 		nameOfTokenId[tokenId] = 0x0;
 
 		updateUnclaimedRewards(_pieceType, tokenId);
@@ -383,7 +382,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 		prizePool += taxAmount / 2;
 		uint256 holdersTax = taxAmount / 2;
-		
+
 		updateShareType(holdersTax);
 
 		nftShares[tokenId] = 0;
@@ -619,7 +618,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		emit UpdateUnclaimedRewards(tokenId, 0);
 		nftShares[tokenId] = 0;
 		emit nftSharesUpdated(tokenId, 0);
-		if (totalReward > 0){
+		if (totalReward > 0) {
 			require(address(this).balance >= totalReward, "Not enough balance in contract to send rewards");
 			payable(msg.sender).transfer(totalReward);
 		}
@@ -635,9 +634,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		currentSupply++;
 		typeStacked[0] += 1;
 		emit NFTMinted(address(this), 0);
-		nftShares[0] =  1;
+		nftShares[0] = 1;
 		emit nftSharesUpdated(0, 1);
-
 
 		// White king
 		_mint(address(this), 1);
@@ -648,7 +646,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		currentSupply++;
 		typeStacked[0] += 1;
 		emit NFTMinted(address(this), 1);
-		nftShares[1] =  1;
+		nftShares[1] = 1;
 		emit nftSharesUpdated(1, 1);
 	}
 
