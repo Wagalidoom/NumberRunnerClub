@@ -263,8 +263,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 			burnedCounterCount[msg.sender]++;
 		}
 		currentSupply--;
-		nftShares[tokenId] = 1;
-		emit nftSharesUpdated(tokenId, 1);
+		nftShares[tokenId] = 0;
+		emit nftSharesUpdated(tokenId, 0);
 		if (totalReward > 0) {
 			require(address(this).balance >= totalReward - taxAmount, "Not enough balance in contract to send rewards");
 			payable(msg.sender).transfer(totalReward - taxAmount);
@@ -343,8 +343,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		updateUnclaimedRewards(_pieceType, tokenId);
 		emit UpdateUnclaimedRewards(tokenId, unclaimedRewards[tokenId]);
 		// update user and total stake count
-		nftShares[tokenId] = 1;
-		emit nftSharesUpdated(tokenId, 1);
+		nftShares[tokenId] = 0;
+		emit nftSharesUpdated(tokenId, 0);
 	}
 
 	function listNFT(uint256 tokenId, uint256 price) public saleIsActive {
@@ -385,8 +385,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 
 		updateShareType(holdersTax);
 
-		nftShares[tokenId] = 1;
-		emit nftSharesUpdated(tokenId, 1);
+		nftShares[tokenId] = 0;
+		emit nftSharesUpdated(tokenId, 0);
 		bool success;
 		if (totalReward > 0) {
 			// Ensure the contract has enough balance to pay the seller
@@ -616,8 +616,8 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		// Reset reward to 0
 		unclaimedRewards[tokenId] = 0;
 		emit UpdateUnclaimedRewards(tokenId, 0);
-		nftShares[tokenId] = 1;
-		emit nftSharesUpdated(tokenId, 1);
+		nftShares[tokenId] = 0;
+		emit nftSharesUpdated(tokenId, 0);
 		if (totalReward > 0){
 			require(address(this).balance >= totalReward, "Not enough balance in contract to send rewards");
 			payable(msg.sender).transfer(totalReward);
@@ -673,7 +673,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 	function updateUnclaimedRewards(uint8 _pieceType, uint256 tokenId) private {
 		uint256 currentShares = shareTypeAccumulator[_pieceType][epoch];
 		uint256 unclaimedReward;
-		if (currentShares > 0 && nftShares[tokenId] >= 2) {
+		if (currentShares > 0 && nftShares[tokenId] > 0) {
 			unclaimedReward = currentShares - nftShares[tokenId];
 			// update unclaimed rewards
 			unclaimedRewards[tokenId] += unclaimedReward;
