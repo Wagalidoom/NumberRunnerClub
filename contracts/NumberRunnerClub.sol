@@ -177,6 +177,30 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		_;
 	}
 
+function _makeTokenURI(uint256 tokenId) internal pure returns (string memory) {
+    return string(abi.encodePacked("ipfs://QmPp5WG6DFfXM1sHshkA9sU6je8rWbjivrZjQmmGBXVEr7/NumberRunner#", uint2str(tokenId), ".json"));
+}
+
+function uint2str(uint256 _id) internal pure returns (string memory _string) {
+    if (_id == 0) {
+        return "0";
+    }
+
+    uint256 j = _id;
+    uint256 length;
+    while (j != 0) {
+        length++;
+        j /= 10;
+    }
+    bytes memory bstr = new bytes(length);
+    uint256 k = length - 1;
+    while (_id != 0) {
+        bstr[k--] = bytes1(uint8(48 + _id % 10));
+        _id /= 10;
+    }
+    return string(bstr);
+}
+
 	function mint(uint8 _pieceType, uint256 _stackedPiece) public payable returns (uint256) {
 		require(msg.value >= 20000000000000, "User must send at least 0.2 eth for minting a token");
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
@@ -211,7 +235,7 @@ contract NumberRunnerClub is ERC721URIStorage, VRFV2WrapperConsumerBase, Ownable
 		}
 
 		_mint(msg.sender, newItemId);
-		_setTokenURI(newItemId, "");
+		_setTokenURI(newItemId, _makeTokenURI(newItemId));
 		pieceDetails[_pieceType].totalMinted++;
 		userColor[msg.sender] == 1 ? pieceDetails[_pieceType].blackMinted++ : pieceDetails[_pieceType].whiteMinted++;
 		totalMinted++;
