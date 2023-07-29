@@ -74,6 +74,7 @@ contract KingAuction is VRFV2WrapperConsumerBase, Ownable {
 		emit KingBought(msg.sender, msg.value, _color);
 		kingHandsPrize += msg.value;
 		kingsInSale[_color - 1] = false;
+		return true;
 	}
 
 	function getCurrentPrice() public view returns (uint256) {
