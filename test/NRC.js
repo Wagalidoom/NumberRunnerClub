@@ -3,9 +3,9 @@ const ethers = require("ethers");
 const namehash = require('eth-ens-namehash');
 const BigNumber = require('bignumber.js');
 
-const userA = "0x94fa0195f865ce48d899c3DdafFBaE06E2E3747e";
-const userB = "0xcBE6d4CEcf5F1189df373cCe02C3d66E123468CE";
-const contractAddress = "0x851C5d3cF60d541BD01EEaE132e7292f3F457668";
+const userA = "0x2Eb50053Ce83097192B7a61CA026f34AB2352CEe";
+const userB = "0x5684e999C91Cbc55a4F4AA57c2FD2f621120e42D";
+const contractAddress = "0x54812De4436fA82287eFCd0e08f95c1199F18082";
 
 const chooseColor = async (instance, colorIndex, fromAddress) => {
   await instance.chooseColor(colorIndex, { from: fromAddress });
@@ -54,6 +54,7 @@ const buyToken = async (instance, tokenId, fromAddress, value) => {
 const buyKing = async (instance, color, amountIn, fromAddress) => {
   let res = await instance.buyKing(color, { from: fromAddress, value:amountIn });
   console.log(`Bought King ${res}`);
+  return res
 };
 
 const getPieceType = (nftId) => {
@@ -122,15 +123,16 @@ module.exports = async function(callback) {
     const instance = await NumberRunnerClub.deployed();
     // const balance = await web3.eth.getBalance(contractAddress);
     // console.log("Deployed ! Contract balance : ",balance)
-    // await displayShareTypeAccumulator(instance);
+    // // await displayShareTypeAccumulator(instance);
     // await chooseColor(instance, 1, userA);
     // await chooseColor(instance, 2, userB);
     const tokenId = await mintToken(instance, userA, 20000000000000);
     const currentKingPrice = await instance.getCurrentPrice();
     const bigNumberPrice = new BigNumber(currentKingPrice);
-    const priceNumber = bigNumberPrice.toNumber()/2**64*10**18;
+    const priceNumber = bigNumberPrice.toNumber();
     console.log(priceNumber)
-    const kingId = await buyKing(instance, 0, priceNumber, userA)
+    const kingId = await buyKing(instance, 2, priceNumber, userA)
+    console.log(kingId)
     // await approveToken(instance, tokenId, contractAddress, userA);
     // await stackToken(instance, "1281.eth", tokenId, userA);
     // const tokenUserB = await mintToken(instance, userB, 20000000000000);
@@ -147,9 +149,6 @@ module.exports = async function(callback) {
     // await listToken(instance, tokenDebug, web3.utils.toWei('10', 'ether'), userA);
     // await burnToken(instance, tokenDebug, userA);
     // await burnToken(instance, tokenUserB, userB)
-    
-
-    console.log(priceNumber/2**64);
     callback();
   } catch (error) {
     console.error(error);
