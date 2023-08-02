@@ -96,7 +96,7 @@ contract KingAuction is VRFV2WrapperConsumerBase, Ownable {
 			int128 result = ABDKMath64x64.exp_2(innerCalculation);
 			
 			// Convert result to uint256 for comparison and scale it
-			uint256 resultUint = ABDKMath64x64.toUInt(ABDKMath64x64.mul(result, ABDKMath64x64.fromUInt(1e18)));
+			uint256 resultUint = ABDKMath64x64.toUInt(ABDKMath64x64.mul(result, ABDKMath64x64.fromUInt(1e0)));
 
 			return resultUint;
 		}
@@ -300,8 +300,10 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			}
 			require(hasRequiredClubStacked, "Doesn't have a required club stacked");
 			require(burnedCount[msg.sender] >= pieceDetails[_pieceType].burnRequirement, "Doesn't burn enough piece");
+			burnedCount[msg.sender] -= pieceDetails[_pieceType].burnRequirement;
 			if (pieceDetails[_pieceType].opponentColorBurnRequirement > 0) {
 				require(burnedCounterCount[msg.sender] >= pieceDetails[_pieceType].opponentColorBurnRequirement, "Doesn't burn enough opponent piece");
+				burnedCounterCount[msg.sender] -= pieceDetails[_pieceType].opponentColorBurnRequirement;
 			}
 		}
 
@@ -336,7 +338,6 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		unclaimedRewards[tokenId] = 0;
 		emit UpdateUnclaimedRewards(tokenId, 0);
 		uint256 taxAmount = (totalReward * pieceDetails[_pieceType].burnTax) / 100;
-		// TODO revoir la redistribution pour gérer les arrondis
 		uint256 holdersTax = taxAmount / 2;
 		prizePool += taxAmount / 2;
 
@@ -478,6 +479,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 		for (uint i = 0; i < tokensId.length; i++) {
 			buyNFT(tokensId[i], getNftPrice(tokensId[i]));
+			_setNftPrice(tokensId[i], 0);
 		}
 	}
 
