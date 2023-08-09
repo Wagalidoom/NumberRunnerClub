@@ -485,6 +485,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function buyNFT(uint256 tokenId, uint256 price) private saleIsActive {
 		address seller = ownerOf(tokenId);
+		require(msg.sender != seller, "Cannot buy your own nft");
 		uint8 _pieceType = getPieceType(tokenId);
 		updateUnclaimedRewards(_pieceType, tokenId);
 		uint256 totalReward = unclaimedRewards[tokenId];
