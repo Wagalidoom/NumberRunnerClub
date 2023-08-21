@@ -655,22 +655,14 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		proposalCounter++;
 	}
 
-	// how long to claim prize pool before ending
 	function claimPrizePool(uint256 tokenId) public {
 		require(totalMinted == MAX_NFT_SUPPLY && currentSupply <= 999, "Collection not ended yet");
-		require(isClub(nodeOfTokenId[tokenId], 7) || (isClub(nodeOfTokenId[tokenId], 8) && isPalindrome(nodeOfTokenId[tokenId], 8)), "Only 999Club and 10kClub Palindrome can claim Prize");
+		require(isClub(nodeOfTokenId[tokenId], 7) || (isClub(nodeOfTokenId[tokenId], 8)), "Only 999Club and 10kClub Palindrome can claim Prize");
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		require(hasClaimedGeneral[tokenId] == false, "Prize already claimed on this nft");
-		// TODO echelle des pourcentages dans les calculs
-		uint256 prizePoolTax = (prizePool / 999) * 35;
-		prizePool -= (prizePool / 999) - prizePoolTax;
-		payable(msg.sender).transfer((prizePool / 999) - prizePoolTax);
+		prizePool -= (prizePool / 999);
+		payable(msg.sender).transfer(prizePool / 999);
 		hasClaimedGeneral[tokenId] = true;
-	}
-
-	function claimPrivatePrize(uint256 tokenId) public {
-		require(totalMinted == MAX_NFT_SUPPLY && currentSupply <= 999, "Burn or sell the nft to claim your rewards");
-		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		uint8 _pieceType = getPieceType(tokenId);
 		updateUnclaimedRewards(_pieceType, tokenId);
 		uint256 totalReward = unclaimedRewards[tokenId];
