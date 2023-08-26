@@ -12,9 +12,11 @@ const chooseColor = async (instance, colorIndex, fromAddress) => {
   console.log(`Chose color ${colorIndex}`);
 };
 
-const revealKing = async (instance, tokenId, fromAddress) => {
-  const iskinghand = await instance.revealKingHand(tokenId, { from: fromAddress, value:  10000000000001 });
-  console.log(`Revealed  ${iskinghand}`);
+const revealKingHand = async (instance, tokenId, fromAddress) => {
+  const r = await instance.revealKingHand(tokenId, { from: fromAddress, value: 10000000000000 });
+  const success = r.logs[0].args.success;
+  console.log(success);
+  return r;
 };
 
 const mintToken = async (instance, fromAddress, value) => {
