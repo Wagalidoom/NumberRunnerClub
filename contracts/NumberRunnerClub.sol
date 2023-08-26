@@ -142,6 +142,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	event NFTStacked(uint256 tokenId, bytes32 ensName);
 	event NFTUnstacked(uint256 tokenId, bytes32 ensName);
 	event UpdateUnclaimedRewards(uint256 tokenId, uint256 rewards);
+	event KingHandRevealed(bool success);
 
 	struct PieceDetails {
 		uint256 maxSupply;
@@ -235,7 +236,12 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	modifier saleIsActive() {
-		require(totalMinted < MAX_NFT_SUPPLY || currentSupply > 999, "Collection ended");
+		require(currentSupply + MAX_NFT_SUPPLY - totalMinted > 999, "Collection ended");
+		_;
+	}
+
+	modifier saleIsNotActive() {
+		require(!(currentSupply + MAX_NFT_SUPPLY - totalMinted > 999), "Collection not ended");
 		_;
 	}
 
@@ -585,12 +591,14 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		return true;
 	}
 
-	function revealKingHand(uint256 tokenId) public payable returns (bool) {
-		require(msg.value > 10000000000000); // reveal price fixed at 0.2 eth
+	function revealKingHand(uint256 tokenId) public payable {
+		require(msg.value >= 10000000000000); // reveal price fixed at 0.2 eth
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		require(getPieceType(tokenId) == 5, "Token must be a Pawn");
 		prizePool += msg.value;
-		return kingAuction.revealKingHand(tokenId);
+		bool isKingHand = kingAuction.revealKingHand(tokenId);
+		emit KingHandRevealed(isKingHand);
+
 	}
 
 	function buyKing(uint256 _color) public payable {
@@ -605,10 +613,9 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		return kingAuction.getCurrentPrice();
 	}
 
-	function claimKingHand(uint256 tokenId) public {
-		require(totalMinted == MAX_NFT_SUPPLY && currentSupply == 999, "Collection not ended yet");
+	// faire en sorte que la king hand puisse être claim une unique fois sa cagnotte
+	function claimKingHand(uint256 tokenId) public saleIsNotActive {
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
-		burn(tokenId);
 		kingAuction.claimKingHand(tokenId);
 	}
 
@@ -620,12 +627,12 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		require(!proposal.voted[tokenId], "Cannot vote more than once with the same token");
 		if (voteFor) {
 			if (piece == 1) {
-				proposal.votes += 4;
+				proposal.votes += 5;
 			}
 			proposal.votes++;
 		} else {
 			if (piece == 0) {
-				proposal.votes -= 4;
+				proposal.votes -= 5;
 			}
 			proposal.votes--;
 		}
@@ -655,8 +662,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		proposalCounter++;
 	}
 
-	function claimPrizePool(uint256 tokenId) public {
-		require(totalMinted == MAX_NFT_SUPPLY && currentSupply <= 999, "Collection not ended yet");
+	function claimPrizePool(uint256 tokenId) public saleIsNotActive {
 		require(isClub(nodeOfTokenId[tokenId], 7) || (isClub(nodeOfTokenId[tokenId], 8)), "Only 999Club and 10kClub Palindrome can claim Prize");
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		require(hasClaimedGeneral[tokenId] == false, "Prize already claimed on this nft");

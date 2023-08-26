@@ -3,15 +3,21 @@ const ethers = require("ethers");
 const namehash = require('eth-ens-namehash');
 const BigNumber = require('bignumber.js');
 
-const userA = "0x2Eb50053Ce83097192B7a61CA026f34AB2352CEe";
-const userB = "0x5684e999C91Cbc55a4F4AA57c2FD2f621120e42D";
-const contractAddress = "0x54812De4436fA82287eFCd0e08f95c1199F18082";
+const userA = "0xdC9CAb2294AA1fa3064F6862916F897E2321320c";
+const userB = "0x46c524C049A84CE802240eDE49422B1C877Cd1FD";
+const contractAddress = "0x1210AaCF9C5D3fac75848B122b88B4eB10245503";
 
 const chooseColor = async (instance, colorIndex, fromAddress) => {
   await instance.chooseColor(colorIndex, { from: fromAddress });
   console.log(`Chose color ${colorIndex}`);
 };
 
+const revealKingHand = async (instance, tokenId, fromAddress) => {
+  const r = await instance.revealKingHand(tokenId, { from: fromAddress, value: 10000000000000 });
+  const success = r.logs[0].args.success;
+  console.log(success);
+  return r;
+};
 
 const mintToken = async (instance, fromAddress, value) => {
   const _Mint = await instance.mint(5, 0, { from: fromAddress, value });
@@ -121,18 +127,19 @@ module.exports = async function(callback) {
   try {
     console.log(ethers.version)
     const instance = await NumberRunnerClub.deployed();
-    // const balance = await web3.eth.getBalance(contractAddress);
-    // console.log("Deployed ! Contract balance : ",balance)
-    // // await displayShareTypeAccumulator(instance);
-    // await chooseColor(instance, 1, userA);
-    // await chooseColor(instance, 2, userB);
+    const balance = await web3.eth.getBalance(contractAddress);
+    console.log("Deployed ! Contract balance : ",balance)
+    // await displayShareTypeAccumulator(instance);
+    await chooseColor(instance, 1, userA);
+    await chooseColor(instance, 2, userB);
     const tokenId = await mintToken(instance, userA, 20000000000000);
-    const currentKingPrice = await instance.getCurrentPrice();
-    const bigNumberPrice = new BigNumber(currentKingPrice);
-    const priceNumber = bigNumberPrice.toNumber();
-    console.log(priceNumber)
-    const kingId = await buyKing(instance, 2, priceNumber, userA)
-    console.log(kingId)
+    const r = await revealKingHand(instance, tokenId, userA);
+    // const currentKingPrice = await instance.getCurrentPrice();
+    // const bigNumberPrice = new BigNumber(currentKingPrice);
+    // const priceNumber = bigNumberPrice.toNumber();
+    // console.log(priceNumber)
+    // const kingId = await buyKing(instance, 2, priceNumber, userA)
+    // console.log(kingId)
     // await approveToken(instance, tokenId, contractAddress, userA);
     // await stackToken(instance, "1281.eth", tokenId, userA);
     // const tokenUserB = await mintToken(instance, userB, 20000000000000);
