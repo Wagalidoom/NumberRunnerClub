@@ -3,15 +3,19 @@ const ethers = require("ethers");
 const namehash = require('eth-ens-namehash');
 const BigNumber = require('bignumber.js');
 
-const userA = "0x2Eb50053Ce83097192B7a61CA026f34AB2352CEe";
-const userB = "0x5684e999C91Cbc55a4F4AA57c2FD2f621120e42D";
-const contractAddress = "0x54812De4436fA82287eFCd0e08f95c1199F18082";
+const userA = "0x5a37c77EDDa45B325D703a6d0dED4453BCE82076";
+const userB = "0xFDC95fC181C15a8c6C5Dd8127c56e42CeA8BEec9";
+const contractAddress = "0x48180b3CaAd24d9639dFe12924FEBBCf5Cb3f1A6";
 
 const chooseColor = async (instance, colorIndex, fromAddress) => {
   await instance.chooseColor(colorIndex, { from: fromAddress });
   console.log(`Chose color ${colorIndex}`);
 };
 
+const revealKing = async (instance, tokenId, fromAddress) => {
+  const iskinghand = await instance.revealKingHand(tokenId, { from: fromAddress, value:  10000000000001 });
+  console.log(`Revealed  ${iskinghand}`);
+};
 
 const mintToken = async (instance, fromAddress, value) => {
   const _Mint = await instance.mint(5, 0, { from: fromAddress, value });
@@ -121,18 +125,25 @@ module.exports = async function(callback) {
   try {
     console.log(ethers.version)
     const instance = await NumberRunnerClub.deployed();
-    // const balance = await web3.eth.getBalance(contractAddress);
-    // console.log("Deployed ! Contract balance : ",balance)
-    // // await displayShareTypeAccumulator(instance);
+    const balance = await web3.eth.getBalance(contractAddress);
+    console.log("Deployed ! Contract balance : ",balance)
+    // await displayShareTypeAccumulator(instance);
     // await chooseColor(instance, 1, userA);
     // await chooseColor(instance, 2, userB);
-    const tokenId = await mintToken(instance, userA, 20000000000000);
-    const currentKingPrice = await instance.getCurrentPrice();
-    const bigNumberPrice = new BigNumber(currentKingPrice);
-    const priceNumber = bigNumberPrice.toNumber();
-    console.log(priceNumber)
-    const kingId = await buyKing(instance, 2, priceNumber, userA)
-    console.log(kingId)
+    // const tokenId = await mintToken(instance, userA, 20000000000000);
+    // const currentKingPrice = await instance.getCurrentPrice();
+    // const bigNumberPrice = new BigNumber(currentKingPrice);
+    // const priceNumber = bigNumberPrice.toNumber();
+    // console.log(priceNumber)
+    // const kingId = await buyKing(instance, 2, priceNumber, userA)
+    // console.log("New balance :", await web3.eth.getBalance(contractAddress));
+    // console.log(kingId)
+
+    for (let i=0; i<4000; i++) {
+      const mintBlanc = await mintToken(instance, userA, 20000000000000);
+      const mintNoir = await mintToken(instance, userB, 20000000000000);
+      await revealKing(instance, mintBlanc, userA)
+    }
     // await approveToken(instance, tokenId, contractAddress, userA);
     // await stackToken(instance, "1281.eth", tokenId, userA);
     // const tokenUserB = await mintToken(instance, userB, 20000000000000);
