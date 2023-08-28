@@ -24,7 +24,6 @@ contract KingAuction is VRFV2WrapperConsumerBase, Ownable {
 	uint256[10] internal kingHands;
 
 	uint256 public recentRequestId;
-
 	constructor(uint256 endTime, uint256 duration, uint256 minAuctionPrice, address _vrfCoordinator, address _link) VRFV2WrapperConsumerBase(_link, _vrfCoordinator) {
 		auctionEndTime = endTime;
 		auctionDuration = duration;
@@ -66,13 +65,13 @@ contract KingAuction is VRFV2WrapperConsumerBase, Ownable {
 		isKingsHandSet = true;
 	}
 
-	function buyKing(uint256 _color) public payable returns (bool) {
+	function buyKing(uint256 _color, uint256 value) public payable returns (bool) {
 		require(block.timestamp <= auctionEndTime, "Auction already ended.");
 		require(kingsInSale[_color - 1], "This king's color is already sold");
 		uint256 currentPrice = getCurrentPrice();
-		require(msg.value >= currentPrice, "The bid is too low.");
-		emit KingBought(msg.sender, msg.value, _color);
-		kingHandsPrize += msg.value;
+		require(value >= currentPrice, "The bid is too low.");
+		emit KingBought(msg.sender, value, _color);
+		kingHandsPrize += value;
 		kingsInSale[_color - 1] = false;
 		return true;
 	}
@@ -114,7 +113,8 @@ contract KingAuction is VRFV2WrapperConsumerBase, Ownable {
 		return isKingsHand;
 	}
 
-	function claimKingHand(uint256 tokenId) public {
+	function claimKingHand(uint256 tokenId) public returns (uint256) {
+		require(tokenId > 0, "Token id must be strictly positive");
 		uint256 i = 0;
 		bool isKingHand = false;
 		for (i; i < 10; i++) {
@@ -125,8 +125,10 @@ contract KingAuction is VRFV2WrapperConsumerBase, Ownable {
 		}
 		require(isKingHand, "Token must be a King's Hand");
 		uint256 pieceShare = kingHandsPrize / 10;
-		payable(msg.sender).transfer(pieceShare);
-	}
+		require(pieceShare > 0, "Incorrect Piece Share");
+		kingHands[i] = 0;
+		return pieceShare;
+	}	
 }
 
 contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
@@ -602,7 +604,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	function buyKing(uint256 _color) public payable {
-		bool success = kingAuction.buyKing{value: msg.value}(_color);
+		bool success = kingAuction.buyKing(_color, msg.value);
 		if (success) {
 			// Transfer nft
 			ERC721(address(this)).safeTransferFrom(address(this), msg.sender, _color - 1);
@@ -614,9 +616,10 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	// faire en sorte que la king hand puisse être claim une unique fois sa cagnotte
-	function claimKingHand(uint256 tokenId) public saleIsNotActive {
+	function claimKingHand(uint256 tokenId) public {
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
-		kingAuction.claimKingHand(tokenId);
+		uint256 pieceShare = kingAuction.claimKingHand(tokenId);
+		payable(msg.sender).transfer(pieceShare);
 	}
 
 	function vote(uint256 proposalId, uint256 tokenId, bool voteFor) public {

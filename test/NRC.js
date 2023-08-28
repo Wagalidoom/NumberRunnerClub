@@ -3,9 +3,9 @@ const ethers = require("ethers");
 const namehash = require('eth-ens-namehash');
 const BigNumber = require('bignumber.js');
 
-const userA = "0x5a37c77EDDa45B325D703a6d0dED4453BCE82076";
-const userB = "0xFDC95fC181C15a8c6C5Dd8127c56e42CeA8BEec9";
-const contractAddress = "0x48180b3CaAd24d9639dFe12924FEBBCf5Cb3f1A6";
+const userA = "0xB870036E38078AE86649144f25d4dF65D09aab68";
+const userB = "0xA71F4dEA5862277b273E73c1F52d5fC50096f952";
+const contractAddress = "0xDcf7eFF846dA96cC5f2f891de0df27B50833d6a0";
 
 const chooseColor = async (instance, colorIndex, fromAddress) => {
   await instance.chooseColor(colorIndex, { from: fromAddress });
@@ -15,14 +15,20 @@ const chooseColor = async (instance, colorIndex, fromAddress) => {
 const revealKingHand = async (instance, tokenId, fromAddress) => {
   const r = await instance.revealKingHand(tokenId, { from: fromAddress, value: 10000000000000 });
   const success = r.logs[0].args.success;
-  console.log(success);
+  console.log("Token", tokenId, " : ", success);
+  return r;
+};
+
+const claimKingHand = async (instance, tokenId, fromAddress) => {
+  const r = await instance.claimKingHand(tokenId, { from: fromAddress });
+  console.log("Claimed King Hand for ", tokenId);
   return r;
 };
 
 const mintToken = async (instance, fromAddress, value) => {
   const _Mint = await instance.mint(5, 0, { from: fromAddress, value });
   const id = _Mint.logs[0].args.tokenId.words[0]
-  console.log(`Minted token ${id}`);
+  // console.log(`Minted token ${id}`);
   return id;
 };
 
@@ -129,23 +135,34 @@ module.exports = async function(callback) {
     const instance = await NumberRunnerClub.deployed();
     const balance = await web3.eth.getBalance(contractAddress);
     console.log("Deployed ! Contract balance : ",balance)
-    // await displayShareTypeAccumulator(instance);
-    // await chooseColor(instance, 1, userA);
-    // await chooseColor(instance, 2, userB);
-    // const tokenId = await mintToken(instance, userA, 20000000000000);
-    // const currentKingPrice = await instance.getCurrentPrice();
-    // const bigNumberPrice = new BigNumber(currentKingPrice);
-    // const priceNumber = bigNumberPrice.toNumber();
-    // console.log(priceNumber)
-    // const kingId = await buyKing(instance, 2, priceNumber, userA)
-    // console.log("New balance :", await web3.eth.getBalance(contractAddress));
-    // console.log(kingId)
+    await displayShareTypeAccumulator(instance);
+    await chooseColor(instance, 1, userA);
+    await chooseColor(instance, 2, userB);
+    const tokenId = await mintToken(instance, userA, 20000000000000);
+    const currentKingPrice = await instance.getCurrentPrice();
+    const bigNumberPrice = new BigNumber(currentKingPrice);
+    const priceNumber = bigNumberPrice.toNumber();
+    console.log(priceNumber)
+    const kingId = await buyKing(instance, 2, web3.utils.toWei("1", "ether"), userA)
+    console.log("New balance :", await web3.eth.getBalance(contractAddress));
+    console.log(kingId)
 
-    for (let i=0; i<4000; i++) {
+    for (let i=0; i<500; i++) {
       const mintBlanc = await mintToken(instance, userA, 20000000000000);
       const mintNoir = await mintToken(instance, userB, 20000000000000);
-      await revealKing(instance, mintBlanc, userA)
+      await revealKingHand(instance, mintBlanc, userA);
+      await revealKingHand(instance, mintNoir, userB);
     }
+    const initialBalanceUserB = await web3.eth.getBalance(userB);
+    console.log("Balance of userB before claiming king hand: ", initialBalanceUserB);
+    const balance1 = await web3.eth.getBalance(contractAddress);
+    console.log("Deployed ! Contract balance BEFORE: ",balance1)
+    await claimKingHand(instance, 1217, userB);
+    const finalBalanceUserB = await web3.eth.getBalance(userB);
+    console.log("Balance of userB after claiming king hand: ", finalBalanceUserB);
+    const balance2 = await web3.eth.getBalance(contractAddress);
+    console.log("Contract balance after claiming king hand ",balance2)
+
     // await approveToken(instance, tokenId, contractAddress, userA);
     // await stackToken(instance, "1281.eth", tokenId, userA);
     // const tokenUserB = await mintToken(instance, userB, 20000000000000);
