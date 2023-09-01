@@ -6,7 +6,11 @@ import "@ensdomains/ens-contracts/contracts/registry/ENS.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
+using Strings for uint256;
+
 
 contract KingAuction is VRFV2WrapperConsumerBase, Ownable {
 	using ABDKMath64x64 for int128;
@@ -262,7 +266,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		for (uint8 i = 0; i < _n; i++) {
 			uint256 newItemId = startId + 2 * i;
 			_mint(msg.sender, newItemId);
-			_setTokenURI(newItemId, string(abi.encodePacked("ipfs://QmPp5WG6DFfXM1sHshkA9sU6je8rWbjivrZjQmmGBXVEr7/NumberRunner#", newItemId, ".json")));
+			_setTokenURI(newItemId, string(abi.encodePacked("ipfs://QmUSL1sxdiSPMUL1s39qpjENXi6kQTmLY1icq9KVjYmc4N/NumberRunner", newItemId.toString(), ".json")));
 			pieceDetails[5].totalMinted++;
 			userColor[msg.sender] == 1 ? pieceDetails[5].blackMinted++ : pieceDetails[5].whiteMinted++;
 			totalMinted++;
@@ -316,7 +320,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		}
 
 		_mint(msg.sender, newItemId);
-		_setTokenURI(newItemId, string(abi.encodePacked("ipfs://QmPp5WG6DFfXM1sHshkA9sU6je8rWbjivrZjQmmGBXVEr7/NumberRunner#", newItemId, ".json")));
+		_setTokenURI(newItemId, string(abi.encodePacked("ipfs://QmUSL1sxdiSPMUL1s39qpjENXi6kQTmLY1icq9KVjYmc4N/NumberRunner", newItemId.toString(), ".json")));
 		pieceDetails[_pieceType].totalMinted++;
 		userColor[msg.sender] == 1 ? pieceDetails[_pieceType].blackMinted++ : pieceDetails[_pieceType].whiteMinted++;
 		totalMinted++;
