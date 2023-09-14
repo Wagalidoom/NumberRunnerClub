@@ -388,7 +388,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		// Ensure the function caller owns the NFT
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		// Ensure the NFT is approved for this contract to manage
-		require(getApproved(tokenId) == address(this), "NFT not approved for staking");
+		// require(getApproved(tokenId) == address(this), "NFT not approved for staking");
 		require(isColorValid(tokenId), "User cannot stack this color");
 		uint8 _pieceType = getPieceType(tokenId);
 		bool hasValidClub = false;
