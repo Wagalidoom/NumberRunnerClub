@@ -164,15 +164,6 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		bool palindromeClubRequirement;
 	}
 
-	struct Proposal {
-		bytes32 ensName;
-		uint256 price;
-		uint256 votes;
-		bool executed;
-		bytes rawTx;
-		mapping(uint256 => bool) voted;
-	}
-
 	KingAuction public kingAuction;
 
 	uint256 public constant MAX_NFT_SUPPLY = 10000;
@@ -188,7 +179,6 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	// L'epoch actuel
 	uint256 public epoch = 0;
 	uint256 prizePool;
-	uint256 proposalCounter;
 
 	ENS ens;
 	mapping(uint256 => bytes32) public nodeOfTokenId; // Mapping of tokenId to the corresponding ENS hash
@@ -207,7 +197,6 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	mapping(address => uint8) public userColor; // Mapping of user address to chosen color
 	mapping(address => uint256) private burnedCount; // Mapping of user address to counter of nft burned
 	mapping(address => uint256) private burnedCounterCount; // Mapping of user address to counter of nft from the opponent color burned
-	mapping(uint256 => Proposal) public proposals; // Mapping of nft stacked in the contract
 	mapping(uint256 => bool) public hasClaimedGeneral;
 	mapping(uint256 => uint256) public nftPriceForSale;
 
@@ -389,6 +378,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		// Ensure the NFT is approved for this contract to manage
 		// require(getApproved(tokenId) == address(this), "NFT not approved for staking");
+		
 		require(isColorValid(tokenId), "User cannot stack this color");
 		uint8 _pieceType = getPieceType(tokenId);
 		bool hasValidClub = false;
@@ -441,7 +431,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		bytes32 node = nodeOfTokenId[tokenId];
 		uint8 _pieceType = getPieceType(tokenId);
 		require(tokenIdOfNode[node] != 0, "ENS not used yet");
-		// require(ens.owner(node) == msg.sender, "Not owner of ENS node");
+		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 		typeStacked[_pieceType] -= 1;
 
 		// Transfer the NFT back to the function caller
@@ -624,49 +614,6 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		uint256 pieceShare = kingAuction.claimKingHand(tokenId);
 		payable(msg.sender).transfer(pieceShare);
-	}
-
-	function vote(uint256 proposalId, uint256 tokenId, bool voteFor) public {
-		uint8 piece = getPieceType(tokenId);
-		require(piece == 1 || piece == 0, "Only King and Queen can vote to general pirze pool");
-		require(ownerOf(tokenId) == msg.sender);
-		Proposal storage proposal = proposals[proposalId];
-		require(!proposal.voted[tokenId], "Cannot vote more than once with the same token");
-		if (voteFor) {
-			if (piece == 1) {
-				proposal.votes += 5;
-			}
-			proposal.votes++;
-		} else {
-			if (piece == 0) {
-				proposal.votes -= 5;
-			}
-			proposal.votes--;
-		}
-		proposal.voted[tokenId] = true;
-	}
-
-	function executeProposal(uint256 proposalId) external onlyOwner nonReentrant returns (bool) {
-		// TODO verifier implementation de nonReentrant
-		Proposal storage proposal = proposals[proposalId];
-		require(proposal.executed == false);
-		require(proposal.price < prizePool, "Not enough fund in the prize pool");
-		bool _success = false;
-		bytes memory _result;
-		if (proposal.votes > 10) {
-			(_success, _result) = address(this).call(proposal.rawTx);
-		}
-		proposal.executed = true;
-		return _success;
-	}
-
-	function createProposal(bytes32 ensName, uint256 price, bytes calldata rawTx) external onlyOwner {
-		require(price < prizePool, "Not enough fund in the prize pool");
-		proposals[proposalCounter].ensName = ensName;
-		proposals[proposalCounter].price = price;
-		proposals[proposalCounter].executed = false;
-		proposals[proposalCounter].rawTx = rawTx;
-		proposalCounter++;
 	}
 
 	function claimPrizePool(uint256 tokenId) public saleIsNotActive {
