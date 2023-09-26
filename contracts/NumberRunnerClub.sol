@@ -149,6 +149,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	event NFTUnstacked(uint256 tokenId, bytes32 ensName);
 	event UpdateUnclaimedRewards(uint256 tokenId, uint256 rewards);
 	event KingHandRevealed(bool success);
+	event NFTKilled(uint256 tokenId, uint256 opponentId);
 
 	struct PieceDetails {
 		uint256 maxSupply;
@@ -366,6 +367,32 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			payable(msg.sender).transfer(totalReward - taxAmount);
 		}
 		emit NFTBurned(msg.sender, tokenId);
+	}
+
+	function killNonStacked(uint256 tokenId, uint256 opponentId) public payable saleIsActive {
+		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
+		require(!isColorValid(opponentId), "User cannot kill same team color NFT");
+		uint256 rewards = unclaimedRewards[opponentId];
+		unclaimedRewards[opponentId] = 0;
+		require(msg.value > 10000000000000 + rewards * 10 / 100);
+		prizePool += msg.value;
+		uint256 burnFee = 0;
+		if(getPieceType(opponentId) == 5){
+			burnFee = rewards * 5 / 100;
+		}
+		else{
+			burnFee = rewards * 10 / 100;
+		}
+		prizePool += burnFee;
+
+		_burn(tokenId);
+
+		if (rewards > 0) {
+			require(address(this).balance >= rewards - burnFee, "Not enough balance in contract to send rewards");
+			payable(msg.sender).transfer(rewards - burnFee);
+		}
+		
+		emit NFTKilled(tokenId, opponentId);
 	}
 
 	function stack(bytes32 node, bytes32 name, uint256 tokenId) public {
