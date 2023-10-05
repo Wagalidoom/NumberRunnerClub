@@ -28,7 +28,7 @@ const claimKingHand = async (instance, tokenId, fromAddress) => {
 const mintToken = async (instance, fromAddress, value) => {
   const _Mint = await instance.mint(5, 0, { from: fromAddress, value });
   const id = _Mint.logs[0].args.tokenId.words[0]
-  // console.log(`Minted token ${id}`);
+  console.log(`Minted token ${id}`);
   return id;
 };
 

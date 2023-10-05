@@ -261,6 +261,8 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			_mint(msg.sender, newItemId);
 			_setTokenURI(newItemId, string(abi.encodePacked("ipfs://QmUSL1sxdiSPMUL1s39qpjENXi6kQTmLY1icq9KVjYmc4N/NumberRunner", newItemId.toString(), ".json")));
 			pieceDetails[5].totalMinted++;
+			unclaimedRewards[newItemId] = 0;
+			nftShares[newItemId] = 0;
 			userColor[msg.sender] == 1 ? pieceDetails[5].blackMinted++ : pieceDetails[5].whiteMinted++;
 			totalMinted++;
 			currentSupply++;
@@ -314,6 +316,8 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 		_mint(msg.sender, newItemId);
 		_setTokenURI(newItemId, string(abi.encodePacked("ipfs://QmUSL1sxdiSPMUL1s39qpjENXi6kQTmLY1icq9KVjYmc4N/NumberRunner", newItemId.toString(), ".json")));
+		unclaimedRewards[newItemId] = 0;
+		nftShares[newItemId] = 0;
 		pieceDetails[_pieceType].totalMinted++;
 		userColor[msg.sender] == 1 ? pieceDetails[_pieceType].blackMinted++ : pieceDetails[_pieceType].whiteMinted++;
 		totalMinted++;
@@ -375,14 +379,13 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	function multiKill(uint256[] calldata tokensId) public payable saleIsActive {
 		require(tokensId.length > 0, "TokensId array is empty");
 		require(msg.sender != address(0), "Buyer is zero address");
-		require(totalMinted == MAX_NFT_SUPPLY, "All NFT must be minted for access this feature");
+		// require(totalMinted == MAX_NFT_SUPPLY, "All NFT must be minted for access this feature");
 		uint256 totalPrice = 0;
 		uint256 killFee = 0;
 		uint256 rewards = 0;
 		for (uint i = 0; i < tokensId.length; i++) {
 			require(!isColorValid(tokensId[i]), "User cannot kill same team color NFT");
-			// rewards = unclaimedRewards[tokensId[i]] + nftShares[tokensId[i]];
-			rewards = unclaimedRewards[tokensId[i]];
+			rewards = unclaimedRewards[tokensId[i]] + nftShares[tokensId[i]];
 
 			if (nodeOfTokenId[tokensId[i]] != 0x0) {
 				killFee = 30000000000000 + (rewards * 10) / 100;
@@ -411,8 +414,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		uint8 _pieceType = getPieceType(tokenId);
 		require(_pieceType != 0, "Cannot burn the King");
 		uint256 killFee = 0;
-		// uint256 rewards = unclaimedRewards[tokenId] + nftShares[tokenId];
-		uint256 rewards = unclaimedRewards[tokenId];
+		uint256 rewards = unclaimedRewards[tokenId] + nftShares[tokenId];
 
 		if (nodeOfTokenId[tokenId] != 0x0) {
 			killFee = 30000000000000 + (rewards * 10) / 100;
@@ -439,6 +441,8 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			require(address(this).balance >= rewards - burnFee, "Not enough balance in contract to send rewards");
 			if (nodeOfTokenId[tokenId] != 0x0) {
 				payable(ens.owner(nodeOfTokenId[tokenId])).transfer(rewards - burnFee);
+				tokenIdOfNode[nodeOfTokenId[tokenId]] = 0;
+				nodeOfTokenId[tokenId] = 0x0;
 			} else {
 				payable(ownerOf(tokenId)).transfer(rewards - burnFee);
 			}
