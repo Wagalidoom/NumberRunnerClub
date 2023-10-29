@@ -402,7 +402,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 			if (nodeOfTokenId[tokensId[i]] != 0x0) {
 				if (expiration[tokensId[i]] == 0) {
-					killFee = 300000000000000000 + (rewards * 10) / 100;
+					killFee = 30000000000000 + (rewards * 10) / 100;
 				} else {
 					require(block.timestamp > expiration[tokensId[i]]);
 					killFee = 0;
@@ -410,9 +410,9 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			} else {
 				// require(block.timestamp >= _unstakeTimestamps[tokensId[i]] + ONE_WEEK, "Cannot burn: One week waiting period is not over");
 				if (isForSale(tokensId[i])) {
-					killFee = 200000000000000000 + (rewards * 10) / 100;
+					killFee = 20000000000000 + (rewards * 10) / 100;
 				} else {
-					killFee = 100000000000000000 + (rewards * 10) / 100;
+					killFee = 10000000000000 + (rewards * 10) / 100;
 				}
 			}
 			_setNftPrice(tokensId[i], 0);
@@ -436,16 +436,16 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 		if (nodeOfTokenId[tokenId] != 0x0) {
 			if (expiration[tokenId] == 0) {
-				killFee = 300000000000000000 + (rewards * 10) / 100;
+				killFee = 30000000000000 + (rewards * 10) / 100;
 			} else {
 				require(block.timestamp > expiration[tokenId]);
 				killFee = 0;
 			}
 		} else {
 			if (isForSale(tokenId)) {
-				killFee = 200000000000000000 + (rewards * 10) / 100;
+				killFee = 20000000000000 + (rewards * 10) / 100;
 			} else {
-				killFee = 100000000000000000 + (rewards * 10) / 100;
+				killFee = 10000000000000 + (rewards * 10) / 100;
 			}
 		}
 		_killFeeDebt[msg.sender] += killFee;
@@ -590,16 +590,16 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function multiBuy(uint256[] calldata tokensId) external payable saleIsActive {
 		require(tokensId.length > 0, "TokensId array is empty");
-		require(msg.sender != address(0), "Buyer is zero address");
+		require(msg.sender != address(0));
 		uint256 totalPrice = 0;
 		for (uint i = 0; i < tokensId.length; i++) {
-			require(isForSale(tokensId[i]), "NFT is not for sale");
+			require(isForSale(tokensId[i]));
 			uint256 price = getNftPrice(tokensId[i]);
 			require(price > 0);
 			totalPrice += price;
 		}
 
-		require(msg.value >= totalPrice, "Insufficient amount sent");
+		require(msg.value >= totalPrice);
 
 		for (uint i = 0; i < tokensId.length; i++) {
 			buyNFT(tokensId[i], getNftPrice(tokensId[i]));
@@ -609,7 +609,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function buyNFT(uint256 tokenId, uint256 price) private saleIsActive {
 		address seller = ownerOf(tokenId);
-		require(msg.sender != seller, "Cannot buy your own nft");
+		require(msg.sender != seller);
 		uint8 _pieceType = getPieceType(tokenId);
 		updateUnclaimedRewards(_pieceType, tokenId);
 		uint256 totalReward = unclaimedRewards[tokenId];
@@ -628,14 +628,14 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		bool success;
 		if (totalReward > 0) {
 			// Ensure the contract has enough balance to pay the seller
-			require(address(this).balance >= totalReward - taxAmount + price, "Not enough balance in contract to pay seller");
+			require(address(this).balance >= totalReward - taxAmount + price);
 			(success, ) = payable(seller).call{ value: totalReward - taxAmount + price }("");
 		} else {
-			require(address(this).balance >= price, "Not enough balance in contract to pay price seller");
+			require(address(this).balance >= price);
 			(success, ) = payable(seller).call{ value: price }("");
 		}
 
-		require(success, "Failed to transfer ether to seller");
+		require(success);
 		// Transfer nft
 		ERC721(address(this)).safeTransferFrom(seller, msg.sender, tokenId);
 		emit NFTPurchased(msg.sender, seller, tokenId, price);
@@ -683,8 +683,8 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	// Let user choose the white or black color
 	function chooseColor(uint8 _color) external {
-		require(_color == 1 || _color == 2, "Invalid color");
-		require(userColor[msg.sender] == 0, "Color already chosen");
+		require(_color == 1 || _color == 2);
+		require(userColor[msg.sender] == 0);
 		userColor[msg.sender] = _color;
 		emit ColorChoosed(_color, msg.sender);
 	}
@@ -711,17 +711,17 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function revealKingHand(uint256 tokenId) external payable {
 		require(msg.value >= 10000000000000000); // reveal price fixed at 0.2 eth
-		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
-		require(getPieceType(tokenId) == 5, "Token must be a Pawn");
+		require(ownerOf(tokenId) == msg.sender);
+		require(getPieceType(tokenId) == 5);
 		prizePool += msg.value;
 		bool isKingHand = kingAuction.revealKingHand(tokenId);
 		emit KingHandRevealed(isKingHand);
 	}
 
 	function buyKing(bytes32 node, bytes32 name) external payable {
-		require(ens.owner(name) == msg.sender, "Not owner of ENS node");
-		require(isClub(name, 7), "Only 999 Club can buy King");
-		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before buying king");
+		require(ens.owner(name) == msg.sender);
+		require(isClub(name, 7));
+		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2);
 
 		bool success = kingAuction.buyKing(userColor[msg.sender], msg.value);
 		if (success) {
@@ -743,15 +743,15 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	// faire en sorte que la king hand puisse être claim une unique fois sa cagnotte
 	function claimKingHand(uint256 tokenId) external {
-		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
+		require(ownerOf(tokenId) == msg.sender);
 		uint256 pieceShare = kingAuction.claimKingHand(tokenId);
 		payable(msg.sender).transfer(pieceShare);
 	}
 
 	function claimPrizePool(uint256 tokenId) external saleIsNotActive {
-		require(isClub(nodeOfTokenId[tokenId], 7) || (isClub(nodeOfTokenId[tokenId], 8)), "Only 999Club and 10kClub can claim Prize");
-		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
-		require(hasClaimedGeneral[tokenId] == false, "Prize already claimed on this nft");
+		require(isClub(nodeOfTokenId[tokenId], 7) || (isClub(nodeOfTokenId[tokenId], 8)));
+		require(ownerOf(tokenId) == msg.sender);
+		require(hasClaimedGeneral[tokenId] == false);
 		prizePool -= (prizePool / 999);
 		payable(msg.sender).transfer(prizePool / 999);
 		hasClaimedGeneral[tokenId] = true;
@@ -764,7 +764,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		nftShares[tokenId] = 0;
 		emit nftSharesUpdated(tokenId, 0);
 		if (totalReward > 0) {
-			require(address(this).balance >= totalReward, "Not enough balance in contract to send rewards");
+			require(address(this).balance >= totalReward);
 			payable(msg.sender).transfer(totalReward);
 		}
 
@@ -772,7 +772,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		if (killFee > 0) {
 			_killFeeDebt[msg.sender] = 0;
 			prizePool -= killFee;
-			require(address(this).balance >= killFee, "Not enough balance in contract to send rewards");
+			require(address(this).balance >= killFee);
 			payable(msg.sender).transfer(killFee);
 		}
 	}
