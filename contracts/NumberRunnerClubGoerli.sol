@@ -514,7 +514,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 				}
 			}
 		}
-		require(hasValidClub, "Doesn't have a valid club name");
+		require(hasValidClub);
 		typeStacked[_pieceType] += 1;
 		nftShares[tokenId] = shareTypeAccumulator[_pieceType][epoch];
 		expiration[tokenId] = getDomainExpirationDate(name);
@@ -538,13 +538,13 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function unstack(uint256 tokenId) external {
 		// Ensure the function caller owns the ENS node
-		require(nodeOfTokenId[tokenId] != 0x0, "Token is not stacked yet");
+		require(nodeOfTokenId[tokenId] != 0x0);
 		// Ensure the NFT is managed by this contract, doublon?
-		require(ownerOf(tokenId) == address(this), "NFT not staked");
+		require(ownerOf(tokenId) == address(this));
 		bytes32 node = nodeOfTokenId[tokenId];
 		uint8 _pieceType = getPieceType(tokenId);
-		require(tokenIdOfNode[node] != 0, "ENS not used yet");
-		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
+		require(tokenIdOfNode[node] != 0);
+		require(ens.owner(node) == msg.sender);
 		typeStacked[_pieceType] -= 1;
 
 		if (typeStacked[_pieceType] == 0) {
@@ -572,7 +572,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function listNFT(uint256 tokenId, uint256 price) external saleIsActive {
 		require(!isForSale(tokenId));
-		require(_isApprovedOrOwner(msg.sender, tokenId), "ERC721: transfer caller is not owner nor approved");
+		require(_isApprovedOrOwner(msg.sender, tokenId));
 		require(price > 0);
 		approve(address(this), tokenId);
 		_setNftPrice(tokenId, price);
