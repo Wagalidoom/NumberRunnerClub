@@ -730,6 +730,8 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			nodeOfTokenId[userColor[msg.sender] - 1] = node;
 			nameOfTokenId[userColor[msg.sender] - 1] = name;
 			tokenIdOfNode[node] = userColor[msg.sender] - 1;
+
+			emit NFTStacked(userColor[msg.sender] - 1, name);
 		}
 	}
 
