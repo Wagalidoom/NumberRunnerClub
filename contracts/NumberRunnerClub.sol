@@ -721,6 +721,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	function buyKing(bytes32 node, bytes32 name) external payable {
 		require(ens.owner(name) == msg.sender, "Not owner of ENS node");
 		require(isClub(name, 7), "Only 999 Club can buy King");
+		require(tokenIdOfNode[node] == 0, "ENS name is already used");
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before buying king");
 
 		bool success = kingAuction.buyKing(userColor[msg.sender], msg.value);
