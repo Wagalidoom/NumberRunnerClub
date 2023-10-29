@@ -273,7 +273,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			prizePool += 50000000000000000;
 			// If there are no pawn stacked, send the fees to prizepool
 			if (typeStacked[5] == 0) {
-				uint256 pawnShare = (50000000000000000 * pieceDetails[5].percentage);
+				uint256 pawnShare = (50000000000000000 * pieceDetails[5].percentage) / 1000;
 				prizePool += pawnShare;
 			}
 
@@ -336,7 +336,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 		// If there are no pawn stacked, send the fees to prizepool
 		if (typeStacked[5] == 0) {
-			uint256 pawnShare = (50000000000000000 * pieceDetails[5].percentage);
+			uint256 pawnShare = (50000000000000000 * pieceDetails[5].percentage) / 1000;
 			prizePool += pawnShare;
 		}
 
