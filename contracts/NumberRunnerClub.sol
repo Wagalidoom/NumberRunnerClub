@@ -711,15 +711,17 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		emit KingHandRevealed(isKingHand);
 	}
 
-	function buyKing(bytes32 name) external payable {
+	function buyKing(bytes32 node, bytes32 name) external payable {
 		require(ens.owner(name) == msg.sender, "Not owner of ENS node");
 		require(isClub(name, 7), "Only 999 Club can buy King");
-		typeStacked[0] -= 1;
+		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before buying king");
 
 		bool success = kingAuction.buyKing(userColor[msg.sender], msg.value);
 		if (success) {
-			// Transfer nft
-			ERC721(address(this)).safeTransferFrom(address(this), msg.sender, userColor[msg.sender] - 1);
+			// Stack the nft
+			nodeOfTokenId[userColor[msg.sender] - 1] = node;
+			nameOfTokenId[userColor[msg.sender] - 1] = name;
+			tokenIdOfNode[node] = userColor[msg.sender] - 1;
 		}
 	}
 
