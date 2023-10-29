@@ -270,17 +270,21 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			userColor[msg.sender] == 1 ? pieceDetails[5].blackMinted++ : pieceDetails[5].whiteMinted++;
 			totalMinted++;
 			currentSupply++;
+			prizePool += 50000000000000000;
 			// If there are no pawn stacked, send the fees to prizepool
 			if (typeStacked[5] == 0) {
-				uint256 pawnShare = (100000000000000000 * pieceDetails[5].percentage);
+				uint256 pawnShare = (50000000000000000 * pieceDetails[5].percentage);
 				prizePool += pawnShare;
 			}
 
+
 			// Add the transaction fee to the piece's balance
-			updateShareType(100000000000000000);
+			updateShareType(50000000000000000);
 
 			emit NFTMinted(msg.sender, newItemId);
 		}
+
+		payable(owner()).transfer(100000000000000000 * _n);
 	}
 
 	function mint(uint8 _pieceType, uint256 _stackedPiece) external payable {
@@ -328,17 +332,20 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		userColor[msg.sender] == 1 ? pieceDetails[_pieceType].blackMinted++ : pieceDetails[_pieceType].whiteMinted++;
 		totalMinted++;
 		currentSupply++;
+		prizePool += 50000000000000000;
 
 		// If there are no pawn stacked, send the fees to prizepool
 		if (typeStacked[5] == 0) {
-			uint256 pawnShare = (100000000000000000 * pieceDetails[5].percentage);
+			uint256 pawnShare = (50000000000000000 * pieceDetails[5].percentage);
 			prizePool += pawnShare;
 		}
 
 		// Add the transaction fee to the piece's balance
-		updateShareType(100000000000000000);
+		updateShareType(50000000000000000);
 
 		emit NFTMinted(msg.sender, newItemId);
+
+		payable(owner()).transfer(100000000000000000);
 	}
 
 	function burn(uint256 tokenId) external saleIsActive {
