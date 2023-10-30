@@ -143,7 +143,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	event NFTMinted(address owner, uint256 tokenId);
 	event globalSharesUpdated(uint256[6] shares);
 	event nftSharesUpdated(uint256 tokenId, uint256 shares);
-	event NFTStacked(uint256 tokenId, bytes32 ensName);
+	event NFTStacked(uint256 tokenId, bytes32 ensName, uint256 expiration);
 	event NFTUnstacked(uint256 tokenId, bytes32 ensName);
 	event UpdateUnclaimedRewards(uint256 tokenId, uint256 rewards);
 	event KingHandRevealed(bool success);
@@ -276,7 +276,6 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 				uint256 pawnShare = (50000000000000000 * pieceDetails[5].percentage) / 1000;
 				prizePool += pawnShare;
 			}
-
 
 			// Add the transaction fee to the piece's balance
 			updateShareType(50000000000000000);
@@ -533,7 +532,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		nodeOfTokenId[tokenId] = node;
 		nameOfTokenId[tokenId] = name;
 		tokenIdOfNode[node] = tokenId;
-		emit NFTStacked(tokenId, name);
+		emit NFTStacked(tokenId, name, expiration[tokenId]);
 	}
 
 	function unstack(uint256 tokenId) external {
@@ -731,7 +730,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			nameOfTokenId[userColor[msg.sender] - 1] = name;
 			tokenIdOfNode[node] = userColor[msg.sender] - 1;
 
-			emit NFTStacked(userColor[msg.sender] - 1, name);
+			emit NFTStacked(userColor[msg.sender] - 1, name, getDomainExpirationDate(name));
 		}
 	}
 
@@ -789,6 +788,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		totalMinted++;
 		currentSupply++;
 		typeStacked[0] += 1;
+		expiration[0] = 0;
 		emit NFTMinted(address(this), 0);
 		nftShares[0] = 1;
 		emit nftSharesUpdated(0, 1);
@@ -801,6 +801,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		totalMinted++;
 		currentSupply++;
 		typeStacked[0] += 1;
+		expiration[1] = 0;
 		emit NFTMinted(address(this), 1);
 		nftShares[1] = 1;
 		emit nftSharesUpdated(1, 1);

@@ -143,7 +143,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	event NFTMinted(address owner, uint256 tokenId);
 	event globalSharesUpdated(uint256[6] shares);
 	event nftSharesUpdated(uint256 tokenId, uint256 shares);
-	event NFTStacked(uint256 tokenId, bytes32 ensName);
+	event NFTStacked(uint256 tokenId, bytes32 ensName, uint256 expiration);
 	event NFTUnstacked(uint256 tokenId, bytes32 ensName);
 	event UpdateUnclaimedRewards(uint256 tokenId, uint256 rewards);
 	event KingHandRevealed(bool success);
@@ -533,7 +533,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		nodeOfTokenId[tokenId] = node;
 		nameOfTokenId[tokenId] = name;
 		tokenIdOfNode[node] = tokenId;
-		emit NFTStacked(tokenId, name);
+		emit NFTStacked(tokenId, name, expiration[tokenId]);
 	}
 
 	function unstack(uint256 tokenId) external {
@@ -710,7 +710,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	function revealKingHand(uint256 tokenId) external payable {
-		require(msg.value >= 10000000000000000); // reveal price fixed at 0.2 eth
+		require(msg.value >= 1000000000000); // reveal price fixed at 0.2 eth
 		require(ownerOf(tokenId) == msg.sender);
 		require(getPieceType(tokenId) == 5);
 		prizePool += msg.value;
@@ -731,7 +731,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			nameOfTokenId[userColor[msg.sender] - 1] = name;
 			tokenIdOfNode[node] = userColor[msg.sender] - 1;
 
-			emit NFTStacked(userColor[msg.sender] - 1, name);
+			emit NFTStacked(userColor[msg.sender] - 1, name, getDomainExpirationDate(name));
 		}
 	}
 
@@ -789,6 +789,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		totalMinted++;
 		currentSupply++;
 		typeStacked[0] += 1;
+		expiration[0] = 0;
 		emit NFTMinted(address(this), 0);
 		nftShares[0] = 1;
 		emit nftSharesUpdated(0, 1);
@@ -801,6 +802,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		totalMinted++;
 		currentSupply++;
 		typeStacked[0] += 1;
+		expiration[1] = 0;
 		emit NFTMinted(address(this), 1);
 		nftShares[1] = 1;
 		emit nftSharesUpdated(1, 1);
