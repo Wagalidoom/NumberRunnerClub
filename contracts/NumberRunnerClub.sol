@@ -206,12 +206,12 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	mapping(uint256 => uint256) public nftPriceForSale;
 
 	constructor(address _ens, address _baseRegistrar, address _vrfCoordinator, address _link) ERC721("Number Runner Club", "NRC") {
-		pieceDetails[0] = PieceDetails(2, 0, 0, 0, 350, 0, 0, 7, 0, 0, false);
-		pieceDetails[1] = PieceDetails(10, 0, 0, 0, 225, 15, 2, 7, 15, 15, false);
-		pieceDetails[2] = PieceDetails(50, 0, 0, 0, 150, 15, 12, 8, 15, 15, true);
-		pieceDetails[3] = PieceDetails(100, 0, 0, 0, 125, 15, 62, 8, 10, 10, false);
-		pieceDetails[4] = PieceDetails(200, 0, 0, 0, 100, 15, 162, 9, 10, 0, true);
-		pieceDetails[5] = PieceDetails(9638, 0, 0, 0, 650, 20, 362, 9, 0, 0, false);
+		pieceDetails[0] = PieceDetails(2, 0, 0, 0, 2, 0, 0, 7, 0, 0, false);
+		pieceDetails[1] = PieceDetails(10, 0, 0, 0, 1, 15, 2, 7, 15, 15, false);
+		pieceDetails[2] = PieceDetails(50, 0, 0, 0, 1, 15, 12, 8, 15, 15, true);
+		pieceDetails[3] = PieceDetails(100, 0, 0, 0, 1, 15, 62, 8, 10, 10, false);
+		pieceDetails[4] = PieceDetails(200, 0, 0, 0, 1, 15, 162, 9, 10, 0, false);
+		pieceDetails[5] = PieceDetails(9638, 0, 0, 0, 8, 20, 362, 9, 0, 0, false);
 		ens = ENS(_ens);
 		baseRegistrar = BaseRegistrarImplementation(_baseRegistrar);
 		prizePool = 0;
@@ -273,7 +273,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			prizePool += 50000000000000000;
 			// If there are no pawn stacked, send the fees to prizepool
 			if (typeStacked[5] == 0) {
-				uint256 pawnShare = (50000000000000000 * pieceDetails[5].percentage) / 1000;
+				uint256 pawnShare = (50000000000000000 * pieceDetails[5].percentage) / 10;
 				prizePool += pawnShare;
 			}
 
@@ -335,7 +335,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 		// If there are no pawn stacked, send the fees to prizepool
 		if (typeStacked[5] == 0) {
-			uint256 pawnShare = (50000000000000000 * pieceDetails[5].percentage) / 1000;
+			uint256 pawnShare = (50000000000000000 * pieceDetails[5].percentage) / 10;
 			prizePool += pawnShare;
 		}
 
@@ -364,7 +364,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 		// If there are no pawn stacked, send the fees to prizepool
 		if (typeStacked[5] == 0) {
-			uint256 pawnShare = (holdersTax * pieceDetails[5].percentage) / 1000;
+			uint256 pawnShare = (holdersTax * pieceDetails[5].percentage) / 10;
 			prizePool += pawnShare;
 		}
 
@@ -813,7 +813,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		uint256[6] memory newShares;
 		for (uint8 i = 0; i < 6; i++) {
 			if (typeStacked[i] > 0) {
-				uint256 pieceShare = (_tax * pieceDetails[i].percentage) / 1000;
+				uint256 pieceShare = (_tax * pieceDetails[i].percentage) / 10;
 				newShares[i] = shareTypeAccumulator[i][epoch - 1] + pieceShare / typeStacked[i];
 			} else {
 				newShares[i] = shareTypeAccumulator[i][epoch - 1];
