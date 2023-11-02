@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 using Strings for uint256;
 
-contract KingAuction is VRFV2WrapperConsumerBase, Ownable {
+contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 	using ABDKMath64x64 for int128;
 	event KingBought(address winner, uint256 amount, uint256 color);
 
@@ -133,7 +133,7 @@ contract KingAuction is VRFV2WrapperConsumerBase, Ownable {
 	}
 }
 
-contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
+contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	event NFTPurchased(address buyer, address seller, uint256 tokenId, uint256 price);
 	event ColorChoosed(uint8 color, address user);
 	event NFTListed(address seller, uint256 tokenId, uint256 price);
@@ -165,7 +165,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		bool palindromeClubRequirement;
 	}
 
-	KingAuction public kingAuction;
+	KingAuctionGoerli public kingAuction;
 
 	uint256 public constant MAX_NFT_SUPPLY = 10000;
 	uint256 public totalMinted = 0;
@@ -233,20 +233,20 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		spawnKings();
 		auctionEndTime = block.timestamp + auctionDuration;
 
-		kingAuction = new KingAuction(auctionEndTime, auctionDuration, minPrice, _vrfCoordinator, _link);
+		kingAuction = new KingAuctionGoerli(auctionEndTime, auctionDuration, minPrice, _vrfCoordinator, _link);
 	}
 
 	modifier saleIsActive() {
-		require(currentSupply + MAX_NFT_SUPPLY - totalMinted > 999, "Collection ended");
+		require(currentSupply + MAX_NFT_SUPPLY - totalMinted > 999);
 		_;
 	}
 
 	modifier saleIsNotActive() {
-		require(!(currentSupply + MAX_NFT_SUPPLY - totalMinted > 999), "Collection not ended");
+		require(!(currentSupply + MAX_NFT_SUPPLY - totalMinted > 999));
 		_;
 	}
 
-	function multiMint(uint8 _n) external payable {
+	function multiMint(uint256 _n) external payable {
 		require(msg.value >= 20000000000000 * _n, "User must send at least _n * 0.2 eth for minting a token");
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
 		require(pieceDetails[5].totalMinted + _n < pieceDetails[5].maxSupply, "Max supply for this Pawn type reached");
@@ -580,8 +580,8 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	function unlistNFT(uint256 tokenId) external saleIsActive {
-		require(msg.sender == ownerOf(tokenId), "Not owner of the NFT");
-		require(isForSale(tokenId), "NFT is not for sale");
+		require(msg.sender == ownerOf(tokenId));
+		require(isForSale(tokenId));
 		uint256 price = getNftPrice(tokenId);
 		require(price > 0);
 		_setNftPrice(tokenId, 0);
@@ -589,7 +589,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	function multiBuy(uint256[] calldata tokensId) external payable saleIsActive {
-		require(tokensId.length > 0, "TokensId array is empty");
+		require(tokensId.length > 0);
 		require(msg.sender != address(0));
 		uint256 totalPrice = 0;
 		for (uint i = 0; i < tokensId.length; i++) {
@@ -719,10 +719,10 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	function buyKing(bytes32 node, bytes32 name) external payable {
-		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
-		require(isClub(name, 7), "Only 999 Club can buy King");
-		require(tokenIdOfNode[node] == 0, "ENS name is already used");
-		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before buying king");
+		require(ens.owner(node) == msg.sender);
+		require(isClub(name, 7));
+		require(tokenIdOfNode[node] == 0);
+		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2);
 
 		bool success = kingAuction.buyKing(userColor[msg.sender], msg.value);
 		if (success) {

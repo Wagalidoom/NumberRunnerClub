@@ -246,7 +246,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		_;
 	}
 
-	function multiMint(uint8 _n) external payable {
+	function multiMint(uint256 _n) external payable {
 		require(msg.value >= 200000000000000000 * _n, "User must send at least _n * 0.2 eth for minting a token");
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
 		require(pieceDetails[5].totalMinted + _n < pieceDetails[5].maxSupply, "Max supply for this Pawn type reached");
