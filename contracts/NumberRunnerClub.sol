@@ -10,6 +10,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
+interface IPublicResolver {
+    function setText(bytes32 node, string calldata key, string calldata value) external;
+}
+
 using Strings for uint256;
 
 contract KingAuction is VRFV2WrapperConsumerBase, Ownable {
@@ -182,6 +186,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	uint256 prizePool;
 
 	ENS ens;
+	address public resolverAddress;
 	BaseRegistrarImplementation public baseRegistrar;
 	mapping(uint256 => bytes32) public nodeOfTokenId; // Mapping of tokenId to the corresponding ENS hash
 	mapping(bytes32 => uint256) public tokenIdOfNode; // Mapping of ENS hash to the corresponding tokenId
@@ -205,7 +210,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	mapping(uint256 => bool) public hasClaimedGeneral;
 	mapping(uint256 => uint256) public nftPriceForSale;
 
-	constructor(address _ens, address _baseRegistrar, address _vrfCoordinator, address _link) ERC721("Number Runner Club", "NRC") {
+	constructor(address _ens, address _resolver, address _baseRegistrar, address _vrfCoordinator, address _link) ERC721("Number Runner Club", "NRC") {
 		pieceDetails[0] = PieceDetails(2, 0, 0, 0, 2, 0, 0, 7, 0, 0, false);
 		pieceDetails[1] = PieceDetails(10, 0, 0, 0, 1, 15, 2, 7, 15, 15, false);
 		pieceDetails[2] = PieceDetails(50, 0, 0, 0, 1, 15, 12, 8, 15, 15, true);
@@ -213,6 +218,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		pieceDetails[4] = PieceDetails(200, 0, 0, 0, 1, 15, 162, 9, 10, 0, false);
 		pieceDetails[5] = PieceDetails(9638, 0, 0, 0, 8, 20, 362, 9, 0, 0, false);
 		ens = ENS(_ens);
+		resolverAddress = _resolver;
 		baseRegistrar = BaseRegistrarImplementation(_baseRegistrar);
 		prizePool = 0;
 		for (uint8 i = 0; i < 6; i++) {
@@ -245,6 +251,11 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		require(!(currentSupply + MAX_NFT_SUPPLY - totalMinted > 999), "Collection not ended");
 		_;
 	}
+
+	function setAvatar(bytes32 node, uint256 _id) private {
+        IPublicResolver resolver = IPublicResolver(resolverAddress);
+        resolver.setText(node, "avatar", string(abi.encodePacked("eip155:1/erc721:", address(this), "/",_id)));
+    }
 
 	function multiMint(uint256 _n) external payable {
 		require(msg.value >= 200000000000000000 * _n, "User must send at least _n * 0.2 eth for minting a token");
@@ -527,7 +538,8 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		}
 
 		// Transfer the NFT to this contract
-		transferFrom(msg.sender, address(this), tokenId); //remplacer par safeTransferFrom?
+		transferFrom(msg.sender, address(this), tokenId);
+		setAvatar(node, tokenId);
 		// Set the token ID for the ENS node
 		nodeOfTokenId[tokenId] = node;
 		nameOfTokenId[tokenId] = name;
@@ -726,6 +738,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		bool success = kingAuction.buyKing(userColor[msg.sender], msg.value);
 		if (success) {
 			// Stack the nft
+			setAvatar(node, userColor[msg.sender] - 1);
 			nodeOfTokenId[userColor[msg.sender] - 1] = node;
 			nameOfTokenId[userColor[msg.sender] - 1] = name;
 			tokenIdOfNode[node] = userColor[msg.sender] - 1;
