@@ -210,7 +210,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		pieceDetails[1] = PieceDetails(10, 0, 0, 0, 1, 15, 2, 7, 15, 15, false);
 		pieceDetails[2] = PieceDetails(50, 0, 0, 0, 1, 15, 12, 8, 15, 15, true);
 		pieceDetails[3] = PieceDetails(100, 0, 0, 0, 1, 15, 62, 8, 10, 10, false);
-		pieceDetails[4] = PieceDetails(200, 0, 0, 0, 1, 15, 162, 9, 10, 0, false);
+		pieceDetails[4] = PieceDetails(200, 0, 0, 0, 1, 15, 162, 8, 10, 0, false);
 		pieceDetails[5] = PieceDetails(9638, 0, 0, 0, 8, 20, 362, 9, 0, 0, false);
 		ens = ENS(_ens);
 		baseRegistrar = BaseRegistrarImplementation(_baseRegistrar);
