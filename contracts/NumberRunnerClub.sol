@@ -14,7 +14,6 @@ using Strings for uint256;
 
 contract KingAuction is VRFV2WrapperConsumerBase, Ownable {
 	using ABDKMath64x64 for int128;
-	event KingBought(address winner, uint256 amount, uint256 color);
 
 	uint256 auctionEndTime;
 	uint256 auctionDuration;
@@ -74,7 +73,6 @@ contract KingAuction is VRFV2WrapperConsumerBase, Ownable {
 		require(kingsInSale[_color - 1], "This king's color is already sold");
 		uint256 currentPrice = getCurrentPrice();
 		require(value >= currentPrice, "The bid is too low.");
-		emit KingBought(msg.sender, value, _color);
 		kingHandsPrize += value;
 		kingsInSale[_color - 1] = false;
 		return true;
@@ -135,6 +133,7 @@ contract KingAuction is VRFV2WrapperConsumerBase, Ownable {
 
 contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	event NFTPurchased(address buyer, address seller, uint256 tokenId, uint256 price);
+	event KingBought(address buyer, uint256 price, uint256 tokenId, bytes32 ensName);
 	event ColorChoosed(uint8 color, address user);
 	event NFTListed(address seller, uint256 tokenId, uint256 price);
 	event NFTUnlisted(address seller, uint256 tokenId, uint256 price);
@@ -730,6 +729,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			nameOfTokenId[userColor[msg.sender] - 1] = name;
 			tokenIdOfNode[node] = userColor[msg.sender] - 1;
 
+			emit KingBought(msg.sender, msg.value, userColor[msg.sender] - 1, name);
 			emit NFTStacked(userColor[msg.sender] - 1, name, getDomainExpirationDate(name));
 		}
 	}
