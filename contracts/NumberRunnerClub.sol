@@ -515,7 +515,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		require(hasValidClub, "Doesn't have a valid club name");
 		typeStacked[_pieceType] += 1;
 		nftShares[tokenId] = shareTypeAccumulator[_pieceType][epoch];
-		expiration[tokenId] = getDomainExpirationDate(name);
+		expiration[tokenId] = getDomainExpirationDate(node);
 		emit nftSharesUpdated(tokenId, shareTypeAccumulator[_pieceType][epoch]);
 
 		if (typeStacked[_pieceType] == 1) {
@@ -730,7 +730,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			tokenIdOfNode[node] = userColor[msg.sender] - 1;
 
 			emit KingBought(msg.sender, msg.value, userColor[msg.sender] - 1, name);
-			emit NFTStacked(userColor[msg.sender] - 1, name, getDomainExpirationDate(name));
+			emit NFTStacked(userColor[msg.sender] - 1, name, getDomainExpirationDate(node));
 		}
 	}
 

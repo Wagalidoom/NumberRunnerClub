@@ -44,7 +44,7 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 		for (uint i = 0; i < randomWords.length; i++) {
 			uint256 randomValue = uint256(keccak256(abi.encode(randomWords[i], i)));
 			// Ensure the random number is in the range [362, 9999]
-			randomValue = (randomValue % (9999 - 362 + 1)) + 362;
+			randomValue = (randomValue % (999 - 10 + 1)) + 10;
 			// Check if the number is already in the array
 			bool exists = false;
 			for (uint j = 0; j < index; j++) {
@@ -166,7 +166,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	KingAuctionGoerli public kingAuction;
 
-	uint256 public constant MAX_NFT_SUPPLY = 10000;
+	uint256 public constant MAX_NFT_SUPPLY = 1000;
 	uint256 public totalMinted = 0;
 	uint256 public currentSupply = 0;
 	uint256 public userStacked = 0;
@@ -206,11 +206,11 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	constructor(address _ens, address _baseRegistrar, address _vrfCoordinator, address _link) ERC721("Number Runner Club", "NRC") {
 		pieceDetails[0] = PieceDetails(2, 0, 0, 0, 2, 0, 0, 7, 0, 0, false);
-		pieceDetails[1] = PieceDetails(10, 0, 0, 0, 1, 15, 2, 7, 15, 15, false);
-		pieceDetails[2] = PieceDetails(50, 0, 0, 0, 1, 15, 12, 8, 15, 15, true);
-		pieceDetails[3] = PieceDetails(100, 0, 0, 0, 1, 15, 62, 8, 10, 10, false);
-		pieceDetails[4] = PieceDetails(200, 0, 0, 0, 1, 15, 162, 8, 10, 0, false);
-		pieceDetails[5] = PieceDetails(9638, 0, 0, 0, 8, 20, 362, 9, 0, 0, false);
+		pieceDetails[1] = PieceDetails(2, 0, 0, 0, 1, 15, 2, 7, 15, 15, false);
+		pieceDetails[2] = PieceDetails(2, 0, 0, 0, 1, 15, 4, 8, 15, 15, true);
+		pieceDetails[3] = PieceDetails(2, 0, 0, 0, 1, 15, 6, 8, 10, 10, false);
+		pieceDetails[4] = PieceDetails(2, 0, 0, 0, 1, 15, 8, 8, 10, 0, false);
+		pieceDetails[5] = PieceDetails(990, 0, 0, 0, 8, 20, 10, 9, 0, 0, false);
 		ens = ENS(_ens);
 		baseRegistrar = BaseRegistrarImplementation(_baseRegistrar);
 		prizePool = 0;
@@ -255,7 +255,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 			require(pieceDetails[5].whiteMinted + _n < pieceDetails[5].maxSupply / 2, "Max supply for white color reached");
 		}
 
-		uint256 startId = userColor[msg.sender] == 1 ? 362 + 2 * pieceDetails[5].blackMinted : 363 + 2 * pieceDetails[5].whiteMinted;
+		uint256 startId = userColor[msg.sender] == 1 ? 10 + 2 * pieceDetails[5].blackMinted : 11 + 2 * pieceDetails[5].whiteMinted;
 
 		for (uint8 i = 0; i < _n; i++) {
 			uint256 newItemId = startId + 2 * i;
@@ -515,7 +515,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		require(hasValidClub);
 		typeStacked[_pieceType] += 1;
 		nftShares[tokenId] = shareTypeAccumulator[_pieceType][epoch];
-		expiration[tokenId] = getDomainExpirationDate(name);
+		expiration[tokenId] = getDomainExpirationDate(node);
 		emit nftSharesUpdated(tokenId, shareTypeAccumulator[_pieceType][epoch]);
 
 		if (typeStacked[_pieceType] == 1) {
@@ -666,13 +666,13 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		// require(nftId < MAX_NFT_SUPPLY, "NFT ID out of range");
 		if (nftId >= 0 && nftId < 2) {
 			return 0;
-		} else if (nftId >= 2 && nftId < 12) {
+		} else if (nftId >= 2 && nftId < 4) {
 			return 1;
-		} else if (nftId >= 12 && nftId < 62) {
+		} else if (nftId >= 4 && nftId < 6) {
 			return 2;
-		} else if (nftId >= 62 && nftId < 162) {
+		} else if (nftId >= 6 && nftId < 8) {
 			return 3;
-		} else if (nftId >= 162 && nftId < 362) {
+		} else if (nftId >= 8 && nftId < 10) {
 			return 4;
 		} else {
 			return 5;
@@ -730,7 +730,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 			tokenIdOfNode[node] = userColor[msg.sender] - 1;
 
 			emit KingBought(msg.sender, msg.value, userColor[msg.sender] - 1, name);
-			emit NFTStacked(userColor[msg.sender] - 1, name, getDomainExpirationDate(name));
+			emit NFTStacked(userColor[msg.sender] - 1, name, getDomainExpirationDate(node));
 		}
 	}
 
