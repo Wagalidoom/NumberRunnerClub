@@ -286,13 +286,13 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	function mint(uint8 _pieceType, uint256 _stackedPiece) external payable {
-		require(msg.value >= 2000000000000, "User must send at least 0.2 eth for minting a token");
-		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
-		require(pieceDetails[_pieceType].totalMinted < pieceDetails[_pieceType].maxSupply, "Max supply for this piece type reached");
+		require(msg.value >= 2000000000000);
+		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2);
+		require(pieceDetails[_pieceType].totalMinted < pieceDetails[_pieceType].maxSupply);
 		if (userColor[msg.sender] == 1) {
-			require(pieceDetails[_pieceType].blackMinted < pieceDetails[_pieceType].maxSupply / 2, "Max supply for black color reached");
+			require(pieceDetails[_pieceType].blackMinted < pieceDetails[_pieceType].maxSupply / 2);
 		} else {
-			require(pieceDetails[_pieceType].whiteMinted < pieceDetails[_pieceType].maxSupply / 2, "Max supply for white color reached");
+			require(pieceDetails[_pieceType].whiteMinted < pieceDetails[_pieceType].maxSupply / 2);
 		}
 
 		// Set the id of the minting token from the type and color of the piece chosen
@@ -305,17 +305,17 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 			for (uint i = 7; i <= pieceDetails[_pieceType].clubRequirement; i++) {
 				bytes32 node = nodeOfTokenId[_stackedPiece];
 				bytes32 name = nameOfTokenId[_stackedPiece];
-				require(ens.owner(node) == msg.sender, "Not owner of ENS node");
+				require(ens.owner(node) == msg.sender);
 				if (isClub(name, i)) {
 					hasRequiredClubStacked = true;
 					break;
 				}
 			}
-			require(hasRequiredClubStacked, "Doesn't have a required club stacked");
-			require(burnedCount[msg.sender] >= pieceDetails[_pieceType].burnRequirement, "Doesn't burn enough piece");
+			require(hasRequiredClubStacked);
+			require(burnedCount[msg.sender] >= pieceDetails[_pieceType].burnRequirement);
 			burnedCount[msg.sender] -= pieceDetails[_pieceType].burnRequirement;
 			if (pieceDetails[_pieceType].opponentColorBurnRequirement > 0) {
-				require(burnedCounterCount[msg.sender] >= pieceDetails[_pieceType].opponentColorBurnRequirement, "Doesn't burn enough opponent piece");
+				require(burnedCounterCount[msg.sender] >= pieceDetails[_pieceType].opponentColorBurnRequirement);
 				burnedCounterCount[msg.sender] -= pieceDetails[_pieceType].opponentColorBurnRequirement;
 			}
 		}
@@ -347,11 +347,11 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	function burn(uint256 tokenId) external saleIsActive {
-		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: burn caller is not owner nor approved");
-		require(!isForSale(tokenId), "This NFT is already on sale");
-		require(nodeOfTokenId[tokenId] == 0x0, "Cannot burn a stacked token");
+		require(_isApprovedOrOwner(_msgSender(), tokenId));
+		require(!isForSale(tokenId));
+		require(nodeOfTokenId[tokenId] == 0x0);
 		uint8 _pieceType = getPieceType(tokenId);
-		require(_pieceType != 0, "Cannot burn the King");
+		require(_pieceType != 0);
 		updateUnclaimedRewards(_pieceType, tokenId);
 		uint256 totalReward = unclaimedRewards[tokenId];
 		// Reset reward to 0
@@ -381,21 +381,21 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		nftShares[tokenId] = 0;
 		emit nftSharesUpdated(tokenId, 0);
 		if (totalReward > 0) {
-			require(address(this).balance >= totalReward - taxAmount, "Not enough balance in contract to send rewards");
+			require(address(this).balance >= totalReward - taxAmount);
 			payable(msg.sender).transfer(totalReward - taxAmount);
 		}
 		emit NFTBurned(msg.sender, tokenId);
 	}
 
 	function multiKill(uint256[] calldata tokensId) external payable saleIsActive {
-		require(tokensId.length > 0, "TokensId array is empty");
-		require(msg.sender != address(0), "Buyer is zero address");
+		require(tokensId.length > 0);
+		require(msg.sender != address(0));
 		// require(totalMinted == MAX_NFT_SUPPLY, "All NFT must be minted for access this feature");
 		uint256 totalPrice = 0;
 		uint256 killFee = 0;
 		uint256 rewards = 0;
 		for (uint i = 0; i < tokensId.length; i++) {
-			require(!isColorValid(tokensId[i]), "User cannot kill same team color NFT");
+			require(!isColorValid(tokensId[i]));
 			rewards = unclaimedRewards[tokensId[i]] + nftShares[tokensId[i]];
 
 			if (nodeOfTokenId[tokensId[i]] != 0x0) {
@@ -419,7 +419,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 			totalPrice += killFee;
 		}
 
-		require(msg.value >= totalPrice, "Insufficient amount sent");
+		require(msg.value >= totalPrice);
 
 		for (uint i = 0; i < tokensId.length; i++) {
 			killNFT(tokensId[i]);
@@ -428,7 +428,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function killNFT(uint256 tokenId) private saleIsActive {
 		uint8 _pieceType = getPieceType(tokenId);
-		require(_pieceType != 0, "Cannot burn the King");
+		require(_pieceType != 0);
 		uint256 killFee = 0;
 		uint256 rewards = unclaimedRewards[tokenId] + nftShares[tokenId];
 
