@@ -452,6 +452,8 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 		_burn(tokenId);
 
+		currentSupply--;
+
 		if (rewards > 0) {
 			require(address(this).balance >= rewards - (rewards * 15) / 100, "Not enough balance in contract to send rewards");
 			if (nodeOfTokenId[tokenId] != 0x0) {
@@ -473,14 +475,16 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		// Ensure the NFT is managed by this contract, doublon?
 		require(ownerOf(tokenId) == address(this), "NFT not staked");
 		bytes32 node = nodeOfTokenId[tokenId];
+		bytes32 name = nameOfTokenId[tokenId];
 		require(tokenIdOfNode[node] != 0, "ENS not used yet");
 		// Ensure the function caller owns the ENS node
 		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 
-		expiration[tokenId] = getDomainExpirationDate(node);
+		expiration[tokenId] = getDomainExpirationDate(name);
 	}
 
-	function stack(bytes32 node, bytes32 name, uint256 tokenId) external {
+	function stack(bytes32 label, uint256 tokenId) external {
+		bytes32 node = keccak256(abi.encodePacked(label, ".eth"));
 		// Ensure the function caller owns the ENS node
 		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 		require(!isForSale(tokenId), "This NFT is already on sale");
@@ -495,18 +499,18 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		for (uint i = 7; i < 10; i++) {
 			if (pieceDetails[_pieceType].palindromeClubRequirement) {
 				if (i == pieceDetails[_pieceType].clubRequirement) {
-					if (isClub(name, i) && isPalindrome(name, i)) {
+					if (isClub(label, i) && isPalindrome(label, i)) {
 						hasValidClub = true;
 						break;
 					}
 				} else {
-					if (isClub(name, i)) {
+					if (isClub(label, i)) {
 						hasValidClub = true;
 						break;
 					}
 				}
 			} else {
-				if (isClub(name, i)) {
+				if (isClub(label, i)) {
 					hasValidClub = true;
 					break;
 				}
@@ -515,7 +519,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		require(hasValidClub, "Doesn't have a valid club name");
 		typeStacked[_pieceType] += 1;
 		nftShares[tokenId] = shareTypeAccumulator[_pieceType][epoch];
-		expiration[tokenId] = getDomainExpirationDate(node);
+		expiration[tokenId] = getDomainExpirationDate(label);
 		emit nftSharesUpdated(tokenId, shareTypeAccumulator[_pieceType][epoch]);
 
 		if (typeStacked[_pieceType] == 1) {
@@ -529,9 +533,9 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		transferFrom(msg.sender, address(this), tokenId);
 		// Set the token ID for the ENS node
 		nodeOfTokenId[tokenId] = node;
-		nameOfTokenId[tokenId] = name;
+		nameOfTokenId[tokenId] = label;
 		tokenIdOfNode[node] = tokenId;
-		emit NFTStacked(tokenId, name, expiration[tokenId]);
+		emit NFTStacked(tokenId, label, expiration[tokenId]);
 	}
 
 	function unstack(uint256 tokenId) external {
@@ -645,15 +649,20 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function isPalindrome(bytes32 name, uint length) private pure returns (bool) {
 		uint start = 0;
-		uint end = length - 5; // Exclude ".eth"
+		uint end = length - 1;
 
 		while (start < end) {
 			bytes1 startByte = name[start];
 			bytes1 endByte = name[end];
 
-			if (startByte < bytes1(0x30) || startByte > bytes1(0x39)) return false; // ASCII values for '0' and '9'
-			if (endByte < bytes1(0x30) || endByte > bytes1(0x39)) return false; // ASCII values for '0' and '9'
-			if (startByte != endByte) return false; // Checking palindrome
+			// Vérifiez que les caractères sont des chiffres
+			if ((startByte < 0x30) || (startByte > 0x39) || (endByte < 0x30) || (endByte > 0x39)) {
+				return false;
+			}
+			// Vérifiez le palindrome
+			if (startByte != endByte) {
+				return false;
+			}
 
 			start++;
 			end--;
@@ -688,20 +697,11 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	function isClub(bytes32 name, uint length) private pure returns (bool) {
-		if (length > 32 || length < 5) return false;
-
-		// Check if the last part is ".eth"
-		if (
-			name[length - 4] != bytes1(0x2e) || // ASCII value for '.'
-			name[length - 3] != bytes1(0x65) || // ASCII value for 'e'
-			name[length - 2] != bytes1(0x74) || // ASCII value for 't'
-			name[length - 1] != bytes1(0x68) // ASCII value for 'h'
-		) return false;
-
-		// Check if the first part is a number
-		for (uint i = 0; i < length - 4; i++) {
+		for (uint i = 0; i < length; i++) {
 			bytes1 b = name[i];
-			if (b < bytes1(0x30) || b > bytes1(0x39)) return false;
+			if (b < 0x30 || b > 0x39) {
+				return false;
+			}
 		}
 
 		return true;
@@ -716,9 +716,10 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		emit KingHandRevealed(isKingHand);
 	}
 
-	function buyKing(bytes32 node, bytes32 name) external payable {
+	function buyKing(bytes32 label) external payable {
+		bytes32 node = keccak256(abi.encodePacked(label, ".eth"));
 		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
-		require(isClub(name, 7), "Only 999 Club can buy King");
+		require(isClub(label, 7), "Only 999 Club can buy King");
 		require(tokenIdOfNode[node] == 0, "ENS name is already used");
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before buying king");
 
@@ -726,11 +727,11 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		if (success) {
 			// Stack the nft
 			nodeOfTokenId[userColor[msg.sender] - 1] = node;
-			nameOfTokenId[userColor[msg.sender] - 1] = name;
+			nameOfTokenId[userColor[msg.sender] - 1] = label;
 			tokenIdOfNode[node] = userColor[msg.sender] - 1;
 
-			emit KingBought(msg.sender, msg.value, userColor[msg.sender] - 1, name);
-			emit NFTStacked(userColor[msg.sender] - 1, name, getDomainExpirationDate(node));
+			emit KingBought(msg.sender, msg.value, userColor[msg.sender] - 1, label);
+			emit NFTStacked(userColor[msg.sender] - 1, label, getDomainExpirationDate(label));
 		}
 	}
 
@@ -739,8 +740,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	function getDomainExpirationDate(bytes32 label) public view returns (uint256) {
-		uint256 tokenId = uint256(label);
-		return baseRegistrar.nameExpires(tokenId) + 90 days;
+		return baseRegistrar.nameExpires(uint256(keccak256(abi.encodePacked(label)))) + 90 days;
 	}
 
 	// faire en sorte que la king hand puisse être claim une unique fois sa cagnotte
@@ -751,7 +751,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	function claimPrizePool(uint256 tokenId) external saleIsNotActive {
-		require(isClub(nodeOfTokenId[tokenId], 7) || (isClub(nodeOfTokenId[tokenId], 8)), "Only 999Club and 10kClub can claim Prize");
+		require(isClub(nameOfTokenId[tokenId], 7) || (isClub(nameOfTokenId[tokenId], 8)), "Only 999Club and 10kClub can claim Prize");
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		require(hasClaimedGeneral[tokenId] == false, "Prize already claimed on this nft");
 		prizePool -= (prizePool / 999);
