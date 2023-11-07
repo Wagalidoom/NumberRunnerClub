@@ -3,9 +3,9 @@ const ethers = require("ethers");
 const namehash = require('eth-ens-namehash');
 const BigNumber = require('bignumber.js');
 
-const userA = "0x3A1BECdd4AaaE635e3ea41257Ca755ED32Cf36d3";
-const userB = "0x67169E1Af4de6cd667871C58bD1a0b7980070350";
-const contractAddress = "0x056A9414630e8940b120853dd90FD74368A08708";
+const userA = "0xd7C2361eF31db331b44d027732d02DFb64a16ef9";
+const userB = "0xd61c2C4954d95398F3a541865d6300464C2b7Ad1";
+const contractAddress = "0xa0D0d8F4e793457D6fBf5C789C03C749A7174F82";
 
 const chooseColor = async (instance, colorIndex, fromAddress) => {
   await instance.chooseColor(colorIndex, { from: fromAddress });
@@ -43,8 +43,8 @@ const approveToken = async (instance, tokenId, toAddress, fromAddress) => {
 };
 
 const stackToken = async (instance, domain, tokenId, fromAddress) => {
-  await instance.stack(namehash.hash(domain), web3.utils.asciiToHex(domain), tokenId, { from: fromAddress });
-  console.log(`Stacked token ${tokenId}`);
+  const _Stack = await instance.stack(web3.utils.asciiToHex(domain), tokenId, { from: fromAddress });
+  console.log(`Stacked token ${JSON.stringify(_Stack, null, 2)}`);
 };
 
 const unstackToken = async (instance, tokenId, fromAddress) => {
@@ -79,11 +79,13 @@ module.exports = async function(callback) {
     const instance = await NumberRunnerClubGoerli.deployed();
     const balance = await web3.eth.getBalance(contractAddress);
     console.log("Deployed ! Contract balance : ",balance);
-    await chooseColor(instance, 1, userA);
+    
+    await stackToken(instance, "764", 370, userA);
+    // await chooseColor(instance, 1, userA);
     // await chooseColor(instance, 2, userB);
     // const tokenId1 = await mintToken(instance, userA, 20000000000000);
     // const tokenId2 = await mintToken(instance, userA, 20000000000000);
-    const tokenId1 = await multiMint(instance, 17, userA, 2000000000000000);
+    // const tokenId1 = await multiMint(instance, 17, userA, 2000000000000000);
     // await listToken(instance, tokenId1, web3.utils.toWei('10', 'ether'), userA);
     // await burnToken(instance, "370", userA);
     // await stackToken(instance, "17921.eth", tokenId1, userA);

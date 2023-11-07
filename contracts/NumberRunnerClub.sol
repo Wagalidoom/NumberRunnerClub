@@ -149,6 +149,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	event NFTKilled(uint256 tokenId);
 
 	uint256 constant ONE_WEEK = 1 weeks;
+	bytes32 constant ETH_NODE = keccak256(abi.encodePacked(bytes32(0), keccak256(abi.encodePacked(".eth"))));
 
 	struct PieceDetails {
 		uint256 maxSupply;
@@ -484,12 +485,12 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	function stack(bytes32 label, uint256 tokenId) external {
-		bytes32 node = keccak256(abi.encodePacked(label, ".eth"));
+		// bytes32 labelHash = uint256(keccak256(abi.encodePacked(label)));
 		// Ensure the function caller owns the ENS node
-		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
+		// require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 		require(!isForSale(tokenId), "This NFT is already on sale");
 		require(nodeOfTokenId[tokenId] == 0x0, "Token is already stacked");
-		require(tokenIdOfNode[node] == 0, "ENS name is already used");
+		// require(tokenIdOfNode[node] == 0, "ENS name is already used");
 		// Ensure the function caller owns the NFT
 		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 
@@ -532,9 +533,9 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		// Transfer the NFT to this contract
 		transferFrom(msg.sender, address(this), tokenId);
 		// Set the token ID for the ENS node
-		nodeOfTokenId[tokenId] = node;
+		// nodeOfTokenId[tokenId] = node;
 		nameOfTokenId[tokenId] = label;
-		tokenIdOfNode[node] = tokenId;
+		// tokenIdOfNode[node] = tokenId;
 		emit NFTStacked(tokenId, label, expiration[tokenId]);
 	}
 

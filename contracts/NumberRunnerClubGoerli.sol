@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "truffle/console.sol";
 import "abdk-libraries-solidity/ABDKMath64x64.sol";
 import "@ensdomains/ens-contracts/contracts/registry/ENS.sol";
 import "@ensdomains/ens-contracts/contracts/ethregistrar/BaseRegistrarImplementation.sol";
@@ -147,8 +148,10 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	event UpdateUnclaimedRewards(uint256 tokenId, uint256 rewards);
 	event KingHandRevealed(bool success);
 	event NFTKilled(uint256 tokenId);
+	event DebugInfo(bytes32 label, bytes32 labelHash, bytes32 node);
 
 	uint256 constant ONE_WEEK = 1 weeks;
+	bytes32 constant ETH_NODE = keccak256(abi.encodePacked(bytes32(0), keccak256(abi.encodePacked(".eth"))));
 
 	struct PieceDetails {
 		uint256 maxSupply;
@@ -236,12 +239,12 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	modifier saleIsActive() {
-		require(currentSupply + MAX_NFT_SUPPLY - totalMinted > 999, "Collection ended");
+		require(currentSupply + MAX_NFT_SUPPLY - totalMinted > 999);
 		_;
 	}
 
 	modifier saleIsNotActive() {
-		require(!(currentSupply + MAX_NFT_SUPPLY - totalMinted > 999), "Collection not ended");
+		require(!(currentSupply + MAX_NFT_SUPPLY - totalMinted > 999));
 		_;
 	}
 
@@ -455,7 +458,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		currentSupply--;
 
 		if (rewards > 0) {
-			require(address(this).balance >= rewards - (rewards * 15) / 100, "Not enough balance in contract to send rewards");
+			require(address(this).balance >= rewards - (rewards * 15) / 100);
 			if (nodeOfTokenId[tokenId] != 0x0) {
 				payable(ens.owner(nodeOfTokenId[tokenId])).transfer(rewards - (rewards * 15) / 100);
 				tokenIdOfNode[nodeOfTokenId[tokenId]] = 0;
@@ -483,8 +486,12 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		expiration[tokenId] = getDomainExpirationDate(name);
 	}
 
-	function stack(bytes32 label, uint256 tokenId) external {
-		bytes32 node = keccak256(abi.encodePacked(label, ".eth"));
+	function stack(bytes32 label, uint256 tokenId) external returns (bytes32, bytes32, bytes32) {
+		bytes32 labelHash = keccak256(abi.encodePacked(label));
+		bytes32 node = keccak256(abi.encodePacked(ETH_NODE, labelHash));
+
+		emit DebugInfo(label, labelHash, node);
+		return (label, labelHash, node);
 		// Ensure the function caller owns the ENS node
 		require(ens.owner(node) == msg.sender, "Not owner of ENS node");
 		require(!isForSale(tokenId), "This NFT is already on sale");
@@ -574,7 +581,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function listNFT(uint256 tokenId, uint256 price) external saleIsActive {
 		require(!isForSale(tokenId));
-		require(_isApprovedOrOwner(msg.sender, tokenId), "ERC721: transfer caller is not owner nor approved");
+		require(_isApprovedOrOwner(msg.sender, tokenId));
 		require(price > 0);
 		approve(address(this), tokenId);
 		_setNftPrice(tokenId, price);
