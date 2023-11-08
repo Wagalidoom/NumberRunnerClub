@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import "abdk-libraries-solidity/ABDKMath64x64.sol";
-import "@ensdomains/ens-contracts/contracts/registry/ENS.sol";
 import "@ensdomains/ens-contracts/contracts/ethregistrar/BaseRegistrarImplementation.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
@@ -244,7 +243,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	function multiMint(uint256 _n) external payable {
-		require(msg.value >= 200000000000000000 * _n, "User must send at least _n * 0.2 eth for minting a token");
+		require(msg.value >= 100000000000000000 * _n, "User must send at least _n * 0.2 eth for minting a token");
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
 		require(pieceDetails[5].totalMinted + _n < pieceDetails[5].maxSupply, "Max supply for this Pawn type reached");
 		if (userColor[msg.sender] == 1) {
@@ -267,24 +266,24 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			userColor[msg.sender] == 1 ? pieceDetails[5].blackMinted++ : pieceDetails[5].whiteMinted++;
 			totalMinted++;
 			currentSupply++;
-			prizePool += 50000000000000000;
+			prizePool += 25000000000000000;
 			// If there are no pawn stacked, send the fees to prizepool
 			if (typeStacked[5] == 0) {
-				uint256 pawnShare = (50000000000000000 * pieceDetails[5].percentage) / 10;
+				uint256 pawnShare = (25000000000000000 * pieceDetails[5].percentage) / 10;
 				prizePool += pawnShare;
 			}
 
 			// Add the transaction fee to the piece's balance
-			updateShareType(50000000000000000);
+			updateShareType(25000000000000000);
 
 			emit NFTMinted(msg.sender, newItemId);
 		}
 
-		payable(owner()).transfer(100000000000000000 * _n);
+		payable(owner()).transfer(50000000000000000 * _n);
 	}
 
 	function mint(uint8 _pieceType, uint256 _stackedPiece) external payable {
-		require(msg.value >= 200000000000000000, "User must send at least 0.2 eth for minting a token");
+		require(msg.value >= 100000000000000000, "User must send at least 0.2 eth for minting a token");
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
 		require(pieceDetails[_pieceType].totalMinted < pieceDetails[_pieceType].maxSupply, "Max supply for this piece type reached");
 		if (userColor[msg.sender] == 1) {
@@ -328,20 +327,20 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		userColor[msg.sender] == 1 ? pieceDetails[_pieceType].blackMinted++ : pieceDetails[_pieceType].whiteMinted++;
 		totalMinted++;
 		currentSupply++;
-		prizePool += 50000000000000000;
+		prizePool += 25000000000000000;
 
 		// If there are no pawn stacked, send the fees to prizepool
 		if (typeStacked[5] == 0) {
-			uint256 pawnShare = (50000000000000000 * pieceDetails[5].percentage) / 10;
+			uint256 pawnShare = (25000000000000000 * pieceDetails[5].percentage) / 10;
 			prizePool += pawnShare;
 		}
 
 		// Add the transaction fee to the piece's balance
-		updateShareType(50000000000000000);
+		updateShareType(25000000000000000);
 
 		emit NFTMinted(msg.sender, newItemId);
 
-		payable(owner()).transfer(100000000000000000);
+		payable(owner()).transfer(50000000000000000);
 	}
 
 	function burn(uint256 tokenId) external saleIsActive {
@@ -679,7 +678,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			return 3;
 		} else if (nftId >= 162 && nftId < 362) {
 			return 4;
-		} else {
+		} else if (nftId >= 362 && nftId < 10000) {
 			return 5;
 		}
 	}
