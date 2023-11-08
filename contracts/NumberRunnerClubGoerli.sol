@@ -175,7 +175,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	uint256 public userStacked = 0;
 	uint256 public currentEpoch = 0;
 	// King auction constants
-	uint256 public constant auctionDuration = 30 days;
+	uint256 public constant auctionDuration = 21 days;
 	uint256 public constant minPrice = 2 ether;
 	uint256 public constant maxPrice = 20000 ether;
 	uint256 public auctionEndTime;
