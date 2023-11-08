@@ -3,9 +3,9 @@ const ethers = require("ethers");
 const namehash = require('eth-ens-namehash');
 const BigNumber = require('bignumber.js');
 
-const userA = "0x095F11aed9ee2E17A557b631206E3BBC41b60034";
-const userB = "0x9D7fAA9Ec26674D21D4faBe274d34ab7f7cCafB9";
-const contractAddress = "0xda1cD504B846ddb364fF530f90b18686B28a3Cbc";
+const userA = "0x3F08eDE9B81eAF2b2c811a1BA29B1A17ab18A1B5";
+const userB = "0xf8C2D47F93e035005b698267677016d62462C85b";
+const contractAddress = "0x30C235E98bFAfC9F076c57713CCD94C56A581FD1";
 
 const chooseColor = async (instance, colorIndex, fromAddress) => {
     await instance.chooseColor(colorIndex, { from: fromAddress });
@@ -44,7 +44,7 @@ const approveToken = async (instance, tokenId, toAddress, fromAddress) => {
 
 const stackToken = async (instance, domain, tokenId, fromAddress) => {
     console.log(web3.utils.asciiToHex(domain), tokenId);
-    const _Stack = await instance.stack(web3.utils.asciiToHex(domain), new BigNumber(tokenId), { from: fromAddress });
+    const _Stack = await instance.stack(domain, tokenId, { from: fromAddress });
     console.log(`Stacked token ${JSON.stringify(_Stack, null, 2)}`);
 };
 

@@ -146,7 +146,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	event UpdateUnclaimedRewards(uint256 tokenId, uint256 rewards);
 	event KingHandRevealed(bool success);
 	event NFTKilled(uint256 tokenId);
-	event DebugInfo(bytes32 label, uint256 labelId, uint256 tokenId);
+	event DebugInfo(string label, uint256 labelId, uint256 tokenId);
 
 	uint256 constant ONE_WEEK = 1 weeks;
 	bytes32 constant ETH_NODE = keccak256(abi.encodePacked(bytes32(0), keccak256(abi.encodePacked(".eth"))));
@@ -182,8 +182,8 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	uint256 prizePool;
 
 	BaseRegistrarImplementation public baseRegistrar;
-	mapping(bytes32 => uint256) public tokenIdOfName; // Mapping of ENS hash to the corresponding tokenId
-	mapping(uint256 => bytes32) public nameOfTokenId; // Mapping of tokenId to the corresponding ENS name
+	mapping(string => uint256) public tokenIdOfName; // Mapping of ENS hash to the corresponding tokenId
+	mapping(uint256 => string) public nameOfTokenId; // Mapping of tokenId to the corresponding ENS name
 	mapping(uint256 => uint256) private _unstakeTimestamps;
 	mapping(uint256 => uint256) public expiration;
 	mapping(address => uint256) private _killFeeDebt;
@@ -481,14 +481,14 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		expiration[tokenId] = getDomainExpirationDate(labelId);
 	}
 
-	function stack(bytes32 label, uint256 tokenId) external {
+	function stack(string memory label, uint256 tokenId) external {
 		uint256 labelId = uint256(keccak256(abi.encodePacked(label)));
 		emit DebugInfo(label, labelId, tokenId);
 		return;
 
 		require(!isForSale(tokenId), "This NFT is already on sale");
 		require(nameOfTokenId[tokenId] == 0x0, "Token is already stacked");
-		require(tokenIdOfName[label] == 0, "ENS name is already used");
+		// require(tokenIdOfName[label] == 0, "ENS name is already used");
 		require(baseRegistrar.ownerOf(labelId) == msg.sender, "Not owner of ENS name");
 
 		// Ensure the function caller owns the NFT
@@ -500,21 +500,21 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		for (uint i = 7; i < 10; i++) {
 			if (pieceDetails[_pieceType].palindromeClubRequirement) {
 				if (i == pieceDetails[_pieceType].clubRequirement) {
-					if (isClub(label, i) && isPalindrome(label, i)) {
-						hasValidClub = true;
-						break;
-					}
+					// if (isClub(label, i) && isPalindrome(label, i)) {
+					// 	hasValidClub = true;
+					// 	break;
+					// }
 				} else {
-					if (isClub(label, i)) {
-						hasValidClub = true;
-						break;
-					}
+					// if (isClub(label, i)) {
+					// 	hasValidClub = true;
+					// 	break;
+					// }
 				}
 			} else {
-				if (isClub(label, i)) {
-					hasValidClub = true;
-					break;
-				}
+				// if (isClub(label, i)) {
+				// 	hasValidClub = true;
+				// 	break;
+				// }
 			}
 		}
 		require(hasValidClub, "Doesn't have a valid club name");
@@ -533,9 +533,9 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		// Transfer the NFT to this contract
 		transferFrom(msg.sender, address(this), tokenId);
 		// Set the token ID for the ENS node
-		nameOfTokenId[tokenId] = label;
-		tokenIdOfName[label] = tokenId;
-		emit NFTStacked(tokenId, label, expiration[tokenId]);
+		// nameOfTokenId[tokenId] = label;
+		// tokenIdOfName[label] = tokenId;
+		// emit NFTStacked(tokenId, label, expiration[tokenId]);
 	}
 
 	function unstack(uint256 tokenId) external {
