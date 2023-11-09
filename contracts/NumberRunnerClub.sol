@@ -684,6 +684,8 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			return 4;
 		} else if (nftId >= 362 && nftId < 10000) {
 			return 5;
+		} else {
+			return 10;
 		}
 	}
 
@@ -739,7 +741,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function claimPrizePool(uint256 tokenId) external saleIsNotActive {
 		require(isClub(nameOfTokenId[tokenId], 7) || (isClub(nameOfTokenId[tokenId], 8)), "Only 999Club and 10kClub can claim Prize");
-		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
+		// require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
 		require(hasClaimedGeneral[tokenId] == false, "Prize already claimed on this nft");
 		prizePool -= (prizePool / 999);
 		payable(msg.sender).transfer(prizePool / 999);
