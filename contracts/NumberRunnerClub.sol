@@ -469,7 +469,6 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	function updateExpiration(uint256 tokenId) external {
 		// Ensure the function caller owns the ENS node
 		require(bytes(nameOfTokenId[tokenId]).length != 0, "Token is not stacked yet");
-		// Ensure the NFT is managed by this contract, doublon?
 		require(ownerOf(tokenId) == address(this), "NFT not staked");
 		string memory name = nameOfTokenId[tokenId];
 		require(tokenIdOfName[name] != 0, "ENS not used yet");
@@ -478,6 +477,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		require(baseRegistrar.ownerOf(labelId) == msg.sender, "Not owner of ENS node");
 
 		expiration[tokenId] = getDomainExpirationDate(labelId);
+		emit NFTStacked(tokenId, name, expiration[tokenId]);
 	}
 
 	function stack(string memory label, uint256 tokenId) external {
