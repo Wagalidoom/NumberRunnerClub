@@ -3,9 +3,9 @@ const ethers = require("ethers");
 const namehash = require('eth-ens-namehash');
 const BigNumber = require('bignumber.js');
 
-const userA = "0x3F08eDE9B81eAF2b2c811a1BA29B1A17ab18A1B5";
-const userB = "0xf8C2D47F93e035005b698267677016d62462C85b";
-const contractAddress = "0x30C235E98bFAfC9F076c57713CCD94C56A581FD1";
+const userA = "0x7f52b01f4AB3586Adf87AA7d3b545eaa1F623c2d";
+const userB = "0xE607DAF34Af947E43686C378cbb34d2b060746A8";
+const contractAddress = "0x35Ed5DBa55b25CbEaa31ec8CBC391A5b95cfFCF9";
 
 const chooseColor = async (instance, colorIndex, fromAddress) => {
     await instance.chooseColor(colorIndex, { from: fromAddress });
@@ -81,10 +81,11 @@ module.exports = async function (callback) {
         const balance = await web3.eth.getBalance(contractAddress);
         console.log("Deployed ! Contract balance : ", balance);
 
-        await stackToken(instance, "764", 370, userA);
-        // await chooseColor(instance, 1, userA);
+        
+        await chooseColor(instance, 1, userA);
         // await chooseColor(instance, 2, userB);
-        // const tokenId1 = await mintToken(instance, userA, 20000000000000);
+        const tokenId1 = await mintToken(instance, userA, 10000000000000);
+        await stackToken(instance, "764", 362, userA);
         // const tokenId2 = await mintToken(instance, userA, 20000000000000);
         // const tokenId1 = await multiMint(instance, 17, userA, 2000000000000000);
         // await listToken(instance, tokenId1, web3.utils.toWei('10', 'ether'), userA);
