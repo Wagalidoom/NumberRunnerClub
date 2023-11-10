@@ -493,7 +493,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		require(isColorValid(tokenId), "User cannot stack this color");
 		uint8 _pieceType = getPieceType(tokenId);
 		bool hasValidClub = false;
-		for (uint i = 3; i < pieceDetails[_pieceType].clubRequirement; i++) {
+		for (uint i = 3; i <= pieceDetails[_pieceType].clubRequirement; i++) {
 			if (pieceDetails[_pieceType].palindromeClubRequirement) {
 				if (i == pieceDetails[_pieceType].clubRequirement) {
 					if (isClub(label, i) && isPalindrome(label)) {
@@ -855,6 +855,10 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function getUserColor(address user) external view returns (uint8) {
 		return userColor[user];
+	}
+
+	function getTokenIdOfName(string memory name) external view returns (uint256) {
+		return tokenIdOfName[name];
 	}
 
 	function getBurnedCount(address user) external view returns (uint256) {
