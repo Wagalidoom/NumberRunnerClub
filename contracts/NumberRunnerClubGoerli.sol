@@ -883,4 +883,31 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	function getPrizePool() external view returns (uint256) {
 		return prizePool;
 	}
+
+	function transferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public override(ERC721, IERC721) {
+        if (isForSale(tokenId)) {
+            _setNftPrice(tokenId, 0);
+            emit NFTUnlisted(from, tokenId, getNftPrice(tokenId));
+        }
+
+        ERC721.transferFrom(from, to, tokenId);
+    }
+
+	function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory _data
+    ) public override(ERC721, IERC721) {
+        if (isForSale(tokenId)) {
+            _setNftPrice(tokenId, 0);
+            emit NFTUnlisted(from, tokenId, getNftPrice(tokenId));
+        }
+
+        ERC721.safeTransferFrom(from, to, tokenId, _data);
+    }
 }
