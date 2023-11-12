@@ -741,7 +741,10 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function claimPrizePool(uint256 tokenId) external saleIsNotActive {
 		require(isClub(nameOfTokenId[tokenId], 3) || (isClub(nameOfTokenId[tokenId], 4)), "Only 999Club and 10kClub can claim Prize");
-		// require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
+		string memory name = nameOfTokenId[tokenId];
+		require(tokenIdOfName[name] != 0, "ENS not used yet");
+		uint256 labelId = uint256(keccak256(abi.encodePacked(name)));
+		require(baseRegistrar.ownerOf(labelId) == msg.sender, "Not owner of ENS node");
 		require(hasClaimedGeneral[tokenId] == false, "Prize already claimed on this nft");
 		prizePool -= (prizePool / 999);
 		payable(msg.sender).transfer(prizePool / 999);
