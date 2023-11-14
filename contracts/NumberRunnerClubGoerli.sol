@@ -148,7 +148,6 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	event NFTKilled(uint256 tokenId);
 
 	uint256 constant ONE_WEEK = 1 weeks;
-	bytes32 constant ETH_NODE = keccak256(abi.encodePacked(bytes32(0), keccak256(abi.encodePacked(".eth"))));
 
 	struct PieceDetails {
 		uint256 maxSupply;
@@ -346,7 +345,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	function burn(uint256 tokenId) external saleIsActive {
 		require(_isApprovedOrOwner(_msgSender(), tokenId));
 		require(!isForSale(tokenId));
-		require(bytes(nameOfTokenId[tokenId]).length == 0, "Cannot burn a stacked token");
+		require(bytes(nameOfTokenId[tokenId]).length == 0);
 		uint8 _pieceType = getPieceType(tokenId);
 		require(_pieceType != 0);
 		updateUnclaimedRewards(_pieceType, tokenId);
@@ -468,13 +467,13 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function updateExpiration(uint256 tokenId) external {
 		// Ensure the function caller owns the ENS node
-		require(bytes(nameOfTokenId[tokenId]).length != 0, "Token is not stacked yet");
+		require(bytes(nameOfTokenId[tokenId]).length != 0);
 		require(ownerOf(tokenId) == address(this));
 		string memory name = nameOfTokenId[tokenId];
-		require(tokenIdOfName[name] != 0, "ENS not used yet");
+		require(tokenIdOfName[name] != 0);
 		uint256 labelId = uint256(keccak256(abi.encodePacked(name)));
 		// Ensure the function caller owns the ENS node
-		require(baseRegistrar.ownerOf(labelId) == msg.sender, "Not owner of ENS node");
+		require(baseRegistrar.ownerOf(labelId) == msg.sender);
 
 		expiration[tokenId] = getDomainExpirationDate(labelId);
 		emit NFTStacked(tokenId, name, expiration[tokenId]);
@@ -482,15 +481,15 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function stack(string memory label, uint256 tokenId) external {
 		uint256 labelId = uint256(keccak256(abi.encodePacked(label)));
-		require(!isForSale(tokenId), "Token is not for sale");
-		require(bytes(nameOfTokenId[tokenId]).length == 0, "Token is already stacked");
-		require(tokenIdOfName[label] == 0, "ENS name is already used");
-		require(baseRegistrar.ownerOf(labelId) == msg.sender, "Not owner of ENS name");
+		require(!isForSale(tokenId));
+		require(bytes(nameOfTokenId[tokenId]).length == 0);
+		require(tokenIdOfName[label] == 0);
+		require(baseRegistrar.ownerOf(labelId) == msg.sender);
 
 		// Ensure the function caller owns the NFT
-		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
+		require(ownerOf(tokenId) == msg.sender);
 
-		require(isColorValid(tokenId), "User cannot stack this color");
+		require(isColorValid(tokenId));
 		uint8 _pieceType = getPieceType(tokenId);
 		bool hasValidClub = false;
 		for (uint i = 3; i <= pieceDetails[_pieceType].clubRequirement; i++) {
@@ -513,7 +512,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 				}
 			}
 		}
-		require(hasValidClub, "Doesn't have a valid club name");
+		require(hasValidClub);
 		typeStacked[_pieceType] += 1;
 		nftShares[tokenId] = shareTypeAccumulator[_pieceType][epoch];
 		expiration[tokenId] = getDomainExpirationDate(labelId);
@@ -536,14 +535,14 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function unstack(uint256 tokenId) external {
 		// Ensure the function caller owns the ENS node
-		require(bytes(nameOfTokenId[tokenId]).length != 0, "Token is not stacked yet");
+		require(bytes(nameOfTokenId[tokenId]).length != 0);
 		// Ensure the NFT is managed by this contract, doublon?
-		require(ownerOf(tokenId) == address(this), "NFT not staked");
+		require(ownerOf(tokenId) == address(this));
 		uint8 _pieceType = getPieceType(tokenId);
 		string memory name = nameOfTokenId[tokenId];
-		require(tokenIdOfName[name] != 0, "ENS not used yet");
+		require(tokenIdOfName[name] != 0);
 		uint256 labelId = uint256(keccak256(abi.encodePacked(name)));
-		require(baseRegistrar.ownerOf(labelId) == msg.sender, "Not owner of ENS node");
+		require(baseRegistrar.ownerOf(labelId) == msg.sender);
 		typeStacked[_pieceType] -= 1;
 
 		if (typeStacked[_pieceType] == 0) {
@@ -708,10 +707,10 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function buyKing(string memory label) external payable {
 		uint256 labelId = uint256(keccak256(abi.encodePacked(label)));
-		require(baseRegistrar.ownerOf(labelId) == msg.sender, "Not owner of ENS node");
-		require(isClub(label, 3), "Only 999 Club can buy King");
-		require(tokenIdOfName[label] == 0, "ENS name is already used");
-		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before buying king");
+		require(baseRegistrar.ownerOf(labelId) == msg.sender);
+		require(isClub(label, 3));
+		require(tokenIdOfName[label] == 0);
+		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2);
 
 		bool success = kingAuction.buyKing(userColor[msg.sender], msg.value);
 		if (success) {
@@ -742,9 +741,9 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	function claimPrizePool(uint256 tokenId) external saleIsNotActive {
 		require(isClub(nameOfTokenId[tokenId], 3) || (isClub(nameOfTokenId[tokenId], 4)));
 		string memory name = nameOfTokenId[tokenId];
-		require(tokenIdOfName[name] != 0, "ENS not used yet");
+		require(tokenIdOfName[name] != 0);
 		uint256 labelId = uint256(keccak256(abi.encodePacked(name)));
-		require(baseRegistrar.ownerOf(labelId) == msg.sender, "Not owner of ENS node");
+		require(baseRegistrar.ownerOf(labelId) == msg.sender);
 		require(hasClaimedGeneral[tokenId] == false);
 		prizePool -= (prizePool / 999);
 		payable(msg.sender).transfer(prizePool / 999);

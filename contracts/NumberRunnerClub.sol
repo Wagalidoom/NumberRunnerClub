@@ -148,7 +148,6 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	event NFTKilled(uint256 tokenId);
 
 	uint256 constant ONE_WEEK = 1 weeks;
-	bytes32 constant ETH_NODE = keccak256(abi.encodePacked(bytes32(0), keccak256(abi.encodePacked(".eth"))));
 
 	struct PieceDetails {
 		uint256 maxSupply;
