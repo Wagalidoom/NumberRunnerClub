@@ -167,6 +167,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	uint256 public constant MAX_NFT_SUPPLY = 10000;
 	uint256 public totalMinted = 0;
+	uint256 public freeMintCounter = 0;
 	uint256 public currentSupply = 0;
 	uint256 public userStacked = 0;
 	uint256 public currentEpoch = 0;
@@ -199,6 +200,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	mapping(address => uint256) private burnedCount; // Mapping of user address to counter of nft burned
 	mapping(address => uint256) private burnedCounterCount; // Mapping of user address to counter of nft from the opponent color burned
 	mapping(uint256 => bool) public hasClaimedGeneral;
+	mapping(address => bool) public hasClaimedFreeMint;
 	mapping(uint256 => uint256) public nftPriceForSale;
 
 	constructor(address _baseRegistrar, address _vrfCoordinator, address _link) ERC721("Number Runner Club", "NRC") {
@@ -242,16 +244,25 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	function multiMint(uint256 _n) external payable {
-		require(msg.value >= 10000000000000 * _n);
-		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2);
-		require(pieceDetails[5].totalMinted + _n < pieceDetails[5].maxSupply);
+		require(_n > 0);
+		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
 		if (userColor[msg.sender] == 1) {
-			require(pieceDetails[5].blackMinted + _n < pieceDetails[5].maxSupply / 2);
+			require(pieceDetails[5].blackMinted + _n < pieceDetails[5].maxSupply / 2, "Max supply for black color reached");
 		} else {
-			require(pieceDetails[5].whiteMinted + _n < pieceDetails[5].maxSupply / 2);
+			require(pieceDetails[5].whiteMinted + _n < pieceDetails[5].maxSupply / 2, "Max supply for white color reached");
+		}
+		uint256 startId = userColor[msg.sender] == 1 ? 362 + 2 * pieceDetails[5].blackMinted : 363 + 2 * pieceDetails[5].whiteMinted;
+		uint256 mintCount = _n;
+
+		if (!hasClaimedFreeMint[msg.sender] && freeMintCounter < 100) {
+			hasClaimedFreeMint[msg.sender] = true;
+			freeMintCounter++;
+			mintCount = _n - 1;
 		}
 
-		uint256 startId = userColor[msg.sender] == 1 ? 362 + 2 * pieceDetails[5].blackMinted : 363 + 2 * pieceDetails[5].whiteMinted;
+		if (mintCount > 0) {
+			require(msg.value >= 10000000000000 * _n, "User must send at least _n * 0.1 eth for minting a token");
+		}
 
 		for (uint8 i = 0; i < _n; i++) {
 			uint256 newItemId = startId + 2 * i;
@@ -265,26 +276,23 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 			userColor[msg.sender] == 1 ? pieceDetails[5].blackMinted++ : pieceDetails[5].whiteMinted++;
 			totalMinted++;
 			currentSupply++;
-			prizePool += 2500000000000;
-			// If there are no pawn stacked, send the fees to prizepool
-			if (typeStacked[5] == 0) {
-				uint256 pawnShare = (2500000000000 * pieceDetails[5].percentage) / 10;
-				prizePool += pawnShare;
+			if (i < mintCount) {
+				prizePool += 2500000000000;
+				// Add the transaction fee to the piece's balance
+				updateShareType(2500000000000);
 			}
-
-			// Add the transaction fee to the piece's balance
-			updateShareType(2500000000000);
 
 			emit NFTMinted(msg.sender, newItemId);
 		}
 
-		payable(owner()).transfer(5000000000000 * _n);
+		if (mintCount > 0) {
+			payable(owner()).transfer(50000000000000000 * mintCount);
+		}
 	}
 
 	function mint(uint8 _pieceType, uint256 _stackedPiece) external payable {
 		require(msg.value >= 10000000000000);
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2);
-		require(pieceDetails[_pieceType].totalMinted < pieceDetails[_pieceType].maxSupply);
 		if (userColor[msg.sender] == 1) {
 			require(pieceDetails[_pieceType].blackMinted < pieceDetails[_pieceType].maxSupply / 2);
 		} else {
@@ -328,12 +336,6 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		currentSupply++;
 		prizePool += 2500000000000;
 
-		// If there are no pawn stacked, send the fees to prizepool
-		if (typeStacked[5] == 0) {
-			uint256 pawnShare = (2500000000000 * pieceDetails[5].percentage) / 10;
-			prizePool += pawnShare;
-		}
-
 		// Add the transaction fee to the piece's balance
 		updateShareType(2500000000000);
 
@@ -356,12 +358,6 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		uint256 taxAmount = (totalReward * pieceDetails[_pieceType].burnTax) / 100;
 		uint256 holdersTax = taxAmount / 2;
 		prizePool += taxAmount / 2;
-
-		// If there are no pawn stacked, send the fees to prizepool
-		if (typeStacked[5] == 0) {
-			uint256 pawnShare = (holdersTax * pieceDetails[5].percentage) / 10;
-			prizePool += pawnShare;
-		}
 
 		updateShareType(holdersTax);
 		nameOfTokenId[tokenId] = "";
@@ -883,30 +879,21 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		return prizePool;
 	}
 
-	function transferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public override(ERC721, IERC721) {
-        if (isForSale(tokenId)) {
-            _setNftPrice(tokenId, 0);
-            emit NFTUnlisted(from, tokenId, getNftPrice(tokenId));
-        }
+	function transferFrom(address from, address to, uint256 tokenId) public override(ERC721, IERC721) {
+		if (isForSale(tokenId)) {
+			_setNftPrice(tokenId, 0);
+			emit NFTUnlisted(from, tokenId, getNftPrice(tokenId));
+		}
 
-        ERC721.transferFrom(from, to, tokenId);
-    }
+		ERC721.transferFrom(from, to, tokenId);
+	}
 
-	function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId,
-        bytes memory _data
-    ) public override(ERC721, IERC721) {
-        if (isForSale(tokenId)) {
-            _setNftPrice(tokenId, 0);
-            emit NFTUnlisted(from, tokenId, getNftPrice(tokenId));
-        }
+	function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory _data) public override(ERC721, IERC721) {
+		if (isForSale(tokenId)) {
+			_setNftPrice(tokenId, 0);
+			emit NFTUnlisted(from, tokenId, getNftPrice(tokenId));
+		}
 
-        ERC721.safeTransferFrom(from, to, tokenId, _data);
-    }
+		ERC721.safeTransferFrom(from, to, tokenId, _data);
+	}
 }
