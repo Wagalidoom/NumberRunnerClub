@@ -245,11 +245,11 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function multiMint(uint256 _n) external payable {
 		require(_n > 0);
-		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
+		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2);
 		if (userColor[msg.sender] == 1) {
-			require(pieceDetails[5].blackMinted + _n < pieceDetails[5].maxSupply / 2, "Max supply for black color reached");
+			require(pieceDetails[5].blackMinted + _n < pieceDetails[5].maxSupply / 2);
 		} else {
-			require(pieceDetails[5].whiteMinted + _n < pieceDetails[5].maxSupply / 2, "Max supply for white color reached");
+			require(pieceDetails[5].whiteMinted + _n < pieceDetails[5].maxSupply / 2);
 		}
 		uint256 startId = userColor[msg.sender] == 1 ? 362 + 2 * pieceDetails[5].blackMinted : 363 + 2 * pieceDetails[5].whiteMinted;
 		uint256 mintCount = _n;
@@ -261,7 +261,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		}
 
 		if (mintCount > 0) {
-			require(msg.value >= 10000000000000 * _n, "User must send at least _n * 0.1 eth for minting a token");
+			require(msg.value >= 10000000000000 * _n);
 		}
 
 		for (uint8 i = 0; i < _n; i++) {
@@ -286,7 +286,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		}
 
 		if (mintCount > 0) {
-			payable(owner()).transfer(50000000000000000 * mintCount);
+			payable(owner()).transfer(5000000000000 * mintCount);
 		}
 	}
 
