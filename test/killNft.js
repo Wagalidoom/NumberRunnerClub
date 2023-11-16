@@ -3,9 +3,14 @@ const ethers = require("ethers");
 const namehash = require('eth-ens-namehash');
 const BigNumber = require('bignumber.js');
 
-const userA = "0x3BDF3e474EB74ac40106A20Bc4901A1919356891";
-const userB = "0x244614a322ADc2579DEE5772fa436B646dC1a528";
-const contractAddress = "0x6D36970F4202F3cC6b141AB49BD68B1e8719726B";
+const userA = "0xE102635AB8E4Ade5A620BaDF593e41BF60185899";
+const userB = "0x5eFbC831639Cc5410a1cE17149802c02464d1452";
+const userC = "0xd69cF9D0B0e5DdB0391bfF15c7FB122c2db1a2c0";
+const userD = "0x76493BdD6Dce8e0C6CAbbe0E4E9E7897d5Bd97A1";
+const userE = "0x963c90254Cf4DaF2cdEBC1b4b5C8c3d70229246F";
+const userF = "0x73A537Bbfb0ee6E253B8B1763e02C5Fb0e8a798c";
+const userG = "0x58657BAf20dCCAF0343eE1e1621FE995E33977c0";
+const contractAddress = "0x536b2e1BA8a0c40019102feBD688343c5Ff16190";
 
 const chooseColor = async (instance, colorIndex, fromAddress) => {
     await instance.chooseColor(colorIndex, { from: fromAddress });
@@ -83,11 +88,23 @@ module.exports = async function (callback) {
 
         
         // await chooseColor(instance, 1, userA);
-        await chooseColor(instance, 2, userB);
+        // await chooseColor(instance, 2, userB);
+        // await chooseColor(instance, 1, userC);
+        // await chooseColor(instance, 2, userD);
+        // await chooseColor(instance, 1, userE);
+        // await chooseColor(instance, 2, userF);
+        // await chooseColor(instance, 1, userG);
         // const tokenId1 = await mintToken(instance, userA, 10000000000000);
         // await stackToken(instance, "764", 362, userA);
         // const tokenId2 = await mintToken(instance, userA, 20000000000000);
-        const tokenId1 = await multiMint(instance, 1, userB, 0);
+        // const tokenId1 = await multiMint(instance, 1, userA, 0);
+        const tokenId2 = await multiMint(instance, 1, userB, 0);
+        const tokenId3 = await multiMint(instance, 1, userC, 0);
+        const tokenId4 = await multiMint(instance, 1, userD, 0);
+        const tokenId5 = await multiMint(instance, 1, userE, 0);
+        const tokenId6 = await multiMint(instance, 1, userF, 0);
+        const tokenId7 = await multiMint(instance, 1, userG, 0);
+
         // await listToken(instance, tokenId1, web3.utils.toWei('10', 'ether'), userA);
         // await burnToken(instance, "370", userA);
         // await stackToken(instance, "17921.eth", tokenId1, userA);

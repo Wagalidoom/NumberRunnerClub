@@ -261,7 +261,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		}
 
 		if (mintCount > 0) {
-			require(msg.value >= 100000000000000000 * _n, "User must send at least _n * 0.1 eth for minting a token");
+			require(msg.value >= 100000000000000000 * mintCount, "User must send at least _n * 0.1 eth for minting a token");
 		}
 
 		for (uint8 i = 0; i < _n; i++) {

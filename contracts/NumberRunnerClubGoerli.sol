@@ -261,7 +261,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		}
 
 		if (mintCount > 0) {
-			require(msg.value >= 10000000000000 * _n);
+			require(msg.value >= 10000000000000 * mintCount);
 		}
 
 		for (uint8 i = 0; i < _n; i++) {
