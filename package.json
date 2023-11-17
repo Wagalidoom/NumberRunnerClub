@@ -1,8 +1,8 @@
 {
   "dependencies": {
     "abdk-libraries-solidity": "^3.2.0",
-    "dotenv": "^16.0.3",
-    "ethers": "^6.6.0",
+    "dotenv": "^16.3.1",
+    "ethers": "^5.7.2",
     "ganache": "^7.8.0",
     "truffle-contract-size": "^2.0.1"
   },

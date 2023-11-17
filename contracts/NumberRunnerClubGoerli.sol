@@ -14,6 +14,9 @@ using Strings for uint256;
 contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 	using ABDKMath64x64 for int128;
 
+    address constant link = 0x326C977E6efc84E512bB9C30f76E30c160eD06FB;
+    address constant wrapper = 0x708701a1DfF4f478de54383E49a627eD4852C816;
+
 	uint256 auctionEndTime;
 	uint256 auctionDuration;
 	uint256 minPrice;
@@ -26,14 +29,14 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 
 	uint256 public recentRequestId;
 
-	constructor(uint256 endTime, uint256 duration, uint256 minAuctionPrice, address _vrfCoordinator, address _link) VRFV2WrapperConsumerBase(_link, _vrfCoordinator) {
+	constructor(uint256 endTime, uint256 duration, uint256 minAuctionPrice) VRFV2WrapperConsumerBase(link, wrapper) {
 		auctionEndTime = endTime;
 		auctionDuration = duration;
 		minPrice = minAuctionPrice;
 	}
 
 	function generateKingHands() public {
-		recentRequestId = requestRandomness(10000000, 15, 10);
+		recentRequestId = requestRandomness(10000, 3, 10);
 	}
 
 	function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
@@ -148,6 +151,8 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	event NFTKilled(uint256 tokenId);
 
 	uint256 constant ONE_WEEK = 1 weeks;
+	
+    address constant _baseRegistrar = 0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85;
 
 	struct PieceDetails {
 		uint256 maxSupply;
@@ -203,7 +208,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	mapping(address => bool) public hasClaimedFreeMint;
 	mapping(uint256 => uint256) public nftPriceForSale;
 
-	constructor(address _baseRegistrar, address _vrfCoordinator, address _link) ERC721("Number Runner Club", "NRC") {
+	constructor() ERC721("Number Runner Club", "NRC") {
 		pieceDetails[0] = PieceDetails(2, 0, 0, 0, 2, 0, 0, 3, 0, 0, false);
 		pieceDetails[1] = PieceDetails(10, 0, 0, 0, 1, 15, 2, 3, 15, 15, false);
 		pieceDetails[2] = PieceDetails(50, 0, 0, 0, 1, 15, 12, 4, 15, 15, true);
@@ -230,7 +235,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		spawnKings();
 		auctionEndTime = block.timestamp + auctionDuration;
 
-		kingAuction = new KingAuctionGoerli(auctionEndTime, auctionDuration, minPrice, _vrfCoordinator, _link);
+		kingAuction = new KingAuctionGoerli(auctionEndTime, auctionDuration, minPrice);
 	}
 
 	modifier saleIsActive() {
