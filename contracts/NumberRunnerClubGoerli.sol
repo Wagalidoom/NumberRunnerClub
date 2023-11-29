@@ -536,14 +536,14 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function unstack(uint256 tokenId) external {
 		// Ensure the function caller owns the ENS node
-		require(bytes(nameOfTokenId[tokenId]).length != 0);
+		require(bytes(nameOfTokenId[tokenId]).length != 0, "Token is not stacked yet");
 		// Ensure the NFT is managed by this contract, doublon?
-		require(ownerOf(tokenId) == address(this));
+		require(ownerOf(tokenId) == address(this), "NFT not staked");
 		uint8 _pieceType = getPieceType(tokenId);
 		string memory name = nameOfTokenId[tokenId];
-		require(tokenIdOfName[name] != 0);
+		// require(tokenIdOfName[name] != 0, "ENS not used yet");
 		uint256 labelId = uint256(keccak256(abi.encodePacked(name)));
-		require(baseRegistrar.ownerOf(labelId) == msg.sender);
+		require(baseRegistrar.ownerOf(labelId) == msg.sender, "Not owner of ENS node");
 		typeStacked[_pieceType] -= 1;
 
 		if (typeStacked[_pieceType] == 0) {
