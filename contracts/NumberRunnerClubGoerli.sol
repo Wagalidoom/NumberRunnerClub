@@ -14,8 +14,8 @@ using Strings for uint256;
 contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 	using ABDKMath64x64 for int128;
 
-    address constant link = 0x326C977E6efc84E512bB9C30f76E30c160eD06FB;
-    address constant wrapper = 0x708701a1DfF4f478de54383E49a627eD4852C816;
+	address constant link = 0x326C977E6efc84E512bB9C30f76E30c160eD06FB;
+	address constant wrapper = 0x708701a1DfF4f478de54383E49a627eD4852C816;
 
 	uint256 auctionEndTime;
 	uint256 auctionDuration;
@@ -36,38 +36,19 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 	}
 
 	function generateKingHands() public {
-		recentRequestId = requestRandomness(10000, 3, 10);
+		require(!isKingsHandSet);
+		recentRequestId = requestRandomness(1000000, 3, 10);
+		isKingsHandSet = true;
 	}
 
 	function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
-		require(!isKingsHandSet);
 		require(requestId == recentRequestId);
-		uint256 index = 0;
-		for (uint i = 0; i < randomWords.length; i++) {
+		for (uint i = 0; i < 10; i++) {
 			uint256 randomValue = uint256(keccak256(abi.encode(randomWords[i], i)));
 			// Ensure the random number is in the range [362, 9999]
-			randomValue = (randomValue % (9999 - 362 + 1)) + 362;
-			// Check if the number is already in the array
-			bool exists = false;
-			for (uint j = 0; j < index; j++) {
-				if (kingHands[j] == randomValue) {
-					exists = true;
-					break;
-				}
-			}
-			// If number does not exist in the array, add it
-			if (!exists) {
-				kingHands[index] = randomValue;
-				index++;
-				// If we have found 10 unique random numbers, exit the loop
-				if (index == 10) {
-					break;
-				}
-			}
-		}
-		// If we didn't find 10 unique random numbers, revert the transaction
-		require(index == 10);
-		isKingsHandSet = true;
+			randomValue = (randomValue % 14) + 2;
+			kingHands[i] = randomValue;		
+		}		
 	}
 
 	function buyKing(uint256 _color, uint256 value) external payable returns (bool) {
@@ -151,8 +132,8 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	event NFTKilled(uint256 tokenId);
 
 	uint256 constant ONE_WEEK = 1 weeks;
-	
-    address constant _baseRegistrar = 0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85;
+
+	address constant _baseRegistrar = 0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85;
 
 	struct PieceDetails {
 		uint256 maxSupply;
@@ -170,7 +151,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	KingAuctionGoerli public kingAuction;
 
-	uint256 public constant MAX_NFT_SUPPLY = 10000;
+	uint256 public constant MAX_NFT_SUPPLY = 16;
 	uint256 public totalMinted = 0;
 	uint256 public freeMintCounter = 0;
 	uint256 public currentSupply = 0;
@@ -210,11 +191,11 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	constructor() ERC721("Number Runner Club", "NRC") {
 		pieceDetails[0] = PieceDetails(2, 0, 0, 0, 2, 0, 0, 3, 0, 0, false);
-		pieceDetails[1] = PieceDetails(10, 0, 0, 0, 1, 15, 2, 3, 15, 15, false);
-		pieceDetails[2] = PieceDetails(50, 0, 0, 0, 1, 15, 12, 4, 15, 15, true);
-		pieceDetails[3] = PieceDetails(100, 0, 0, 0, 1, 15, 62, 4, 10, 10, false);
-		pieceDetails[4] = PieceDetails(200, 0, 0, 0, 1, 15, 162, 4, 10, 0, false);
-		pieceDetails[5] = PieceDetails(9638, 0, 0, 0, 8, 20, 362, 5, 0, 0, false);
+		pieceDetails[1] = PieceDetails(0, 0, 0, 0, 1, 15, 2, 3, 15, 15, false);
+		pieceDetails[2] = PieceDetails(0, 0, 0, 0, 1, 15, 4, 4, 15, 15, true);
+		pieceDetails[3] = PieceDetails(0, 0, 0, 0, 1, 15, 6, 4, 10, 10, false);
+		pieceDetails[4] = PieceDetails(0, 0, 0, 0, 1, 15, 8, 4, 10, 0, false);
+		pieceDetails[5] = PieceDetails(14, 0, 0, 0, 8, 20, 2, 5, 0, 0, false);
 		baseRegistrar = BaseRegistrarImplementation(_baseRegistrar);
 		prizePool = 0;
 		for (uint8 i = 0; i < 6; i++) {
@@ -239,12 +220,12 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	modifier saleIsActive() {
-		require(currentSupply + MAX_NFT_SUPPLY - totalMinted > 999);
+		require(currentSupply + MAX_NFT_SUPPLY - totalMinted > 10);
 		_;
 	}
 
 	modifier saleIsNotActive() {
-		require(!(currentSupply + MAX_NFT_SUPPLY - totalMinted > 999));
+		require(!(currentSupply + MAX_NFT_SUPPLY - totalMinted > 10));
 		_;
 	}
 
@@ -252,11 +233,11 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		require(_n > 0);
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2);
 		if (userColor[msg.sender] == 1) {
-			require(pieceDetails[5].blackMinted + _n < pieceDetails[5].maxSupply / 2);
+			require(pieceDetails[5].blackMinted + _n <= pieceDetails[5].maxSupply / 2);
 		} else {
-			require(pieceDetails[5].whiteMinted + _n < pieceDetails[5].maxSupply / 2);
+			require(pieceDetails[5].whiteMinted + _n <= pieceDetails[5].maxSupply / 2);
 		}
-		uint256 startId = userColor[msg.sender] == 1 ? 362 + 2 * pieceDetails[5].blackMinted : 363 + 2 * pieceDetails[5].whiteMinted;
+		uint256 startId = userColor[msg.sender] == 1 ? 2 + 2 * pieceDetails[5].blackMinted : 3 + 2 * pieceDetails[5].whiteMinted;
 		uint256 mintCount = _n;
 
 		if (!hasClaimedFreeMint[msg.sender] && freeMintCounter < 100) {
@@ -299,9 +280,9 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		require(msg.value >= 10000000000000);
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2);
 		if (userColor[msg.sender] == 1) {
-			require(pieceDetails[_pieceType].blackMinted < pieceDetails[_pieceType].maxSupply / 2);
+			require(pieceDetails[_pieceType].blackMinted <= pieceDetails[_pieceType].maxSupply / 2);
 		} else {
-			require(pieceDetails[_pieceType].whiteMinted < pieceDetails[_pieceType].maxSupply / 2);
+			require(pieceDetails[_pieceType].whiteMinted <= pieceDetails[_pieceType].maxSupply / 2);
 		}
 
 		// Set the id of the minting token from the type and color of the piece chosen
@@ -674,15 +655,15 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		// require(nftId < MAX_NFT_SUPPLY, "NFT ID out of range");
 		if (nftId >= 0 && nftId < 2) {
 			return 0;
-		} else if (nftId >= 2 && nftId < 12) {
-			return 1;
-		} else if (nftId >= 12 && nftId < 62) {
-			return 2;
-		} else if (nftId >= 62 && nftId < 162) {
-			return 3;
-		} else if (nftId >= 162 && nftId < 362) {
-			return 4;
-		} else if (nftId >= 362 && nftId < 10000) {
+		} else if (nftId >= 2 && nftId < 4) {
+			return 5;
+		} else if (nftId >= 4 && nftId < 6) {
+			return 5;
+		} else if (nftId >= 6 && nftId < 8) {
+			return 5;
+		} else if (nftId >= 8 && nftId < 10) {
+			return 5;
+		} else if (nftId >= 10 && nftId < 150) {
 			return 5;
 		} else {
 			return 10;
@@ -732,7 +713,6 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		return baseRegistrar.nameExpires(labelId) + 90 days;
 	}
 
-	// faire en sorte que la king hand puisse être claim une unique fois sa cagnotte
 	function claimKingHand(uint256 tokenId) external {
 		require(ownerOf(tokenId) == msg.sender);
 		uint256 pieceShare = kingAuction.claimKingHand(tokenId);
@@ -746,8 +726,8 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		uint256 labelId = uint256(keccak256(abi.encodePacked(name)));
 		require(baseRegistrar.ownerOf(labelId) == msg.sender);
 		require(hasClaimedGeneral[tokenId] == false);
-		prizePool -= (prizePool / 999);
-		payable(msg.sender).transfer(prizePool / 999);
+		// prizePool -= (prizePool / 10);
+		payable(msg.sender).transfer(prizePool / 10);
 		hasClaimedGeneral[tokenId] = true;
 		uint8 _pieceType = getPieceType(tokenId);
 		updateUnclaimedRewards(_pieceType, tokenId);
@@ -769,6 +749,9 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 			require(address(this).balance >= killFee);
 			payable(msg.sender).transfer(killFee);
 		}
+		
+		_burn(tokenId);
+		emit NFTBurned(msg.sender, tokenId);
 	}
 
 	function spawnKings() private {

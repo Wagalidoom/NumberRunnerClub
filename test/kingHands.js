@@ -5,7 +5,7 @@ const BigNumber = require('bignumber.js');
 
 const userA = "0xD553F496748F85195c1Ba7CfD7d5899f9D3c0EC3";
 const userB = "0xA614E2f05F5561aF8119692076A499C707465cC7";
-const contractAddress = "0xA1234A8aC6707162707bd2c09f62A06004d0967e";
+const contractAddress = "0xE94058564aF7bBF20ce5B5cDB310eFB53C39fC8b";
 
 const chooseColor = async (instance, colorIndex, fromAddress) => {
   await instance.chooseColor(colorIndex, { from: fromAddress });
@@ -20,7 +20,7 @@ const fulfillRandomWord = async (instance, fromAddress) => {
 const revealKingHand = async (instance, tokenId, fromAddress) => {
   const r = await instance.revealKingHand(tokenId, { from: fromAddress, value: 10000000000000 });
   const success = r.logs[0].args.success;
-  console.log("Token", tokenId, " : ", success);
+  console.log("Token", tokenId, " : ", r.logs[0]);
   return r;
 };
 
@@ -138,22 +138,21 @@ module.exports = async function(callback) {
   try {
     console.log(ethers.version)
     const instance = await NumberRunnerClubGoerli.deployed();
-    console.log(instance);
     // const balance = await web3.eth.getBalance(contractAddress);
     // console.log("Deployed ! Contract balance : ",balance)
     // await displayShareTypeAccumulator(instance);
     // await fulfillRandomWord(instance, userA)
-    // await chooseColor(instance, 1, userA);
-    // await chooseColor(instance, 2, userB);
+    await chooseColor(instance, 1, userA);
+    await chooseColor(instance, 2, userB);
     // const tokenId = await mintToken(instance, userA, 20000000000000);;
     // console.log(kingId)
 
-    // for (let i=0; i<500; i++) {
-    //   const mintBlanc = await mintToken(instance, userA, 20000000000000);
-    //   const mintNoir = await mintToken(instance, userB, 20000000000000);
-    //   await revealKingHand(instance, mintBlanc, userA);
-    //   await revealKingHand(instance, mintNoir, userB);
-    // }
+    for (let i=0; i<40; i++) {
+      const mintBlanc = await mintToken(instance, userA, 20000000000000);
+      const mintNoir = await mintToken(instance, userB, 20000000000000);
+      await revealKingHand(instance, mintBlanc, userA);
+      await revealKingHand(instance, mintNoir, userB);
+    }
     // const initialBalanceUserB = await web3.eth.getBalance(userB);
     // console.log("Balance of userB before claiming king hand: ", initialBalanceUserB);
     // const balance1 = await web3.eth.getBalance(contractAddress);
