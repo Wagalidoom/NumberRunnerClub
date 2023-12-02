@@ -5,13 +5,12 @@ import "abdk-libraries-solidity/ABDKMath64x64.sol";
 import "@ensdomains/ens-contracts/contracts/ethregistrar/BaseRegistrarImplementation.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 using Strings for uint256;
 
-contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
+contract KingAuctionGoerli is VRFV2WrapperConsumerBase {
 	using ABDKMath64x64 for int128;
 
 	address constant link = 0x326C977E6efc84E512bB9C30f76E30c160eD06FB;
@@ -103,7 +102,7 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 	}
 }
 
-contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
+contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 	event NFTPurchased(address buyer, address seller, uint256 tokenId, uint256 price);
 	event KingBought(address buyer, uint256 price, uint256 tokenId, string ensName);
 	event ColorChoosed(uint8 color, address user);
@@ -123,6 +122,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 	uint256 constant ONE_WEEK = 1 weeks;
 
 	address constant _baseRegistrar = 0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85;
+	address constant NRC = 0xA113BEFb068c6583acf123C86cdbBB24B35D2D37;
 
 	struct PieceDetails {
 		uint256 maxSupply;
@@ -261,7 +261,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		}
 
 		if (mintCount > 0) {
-			payable(owner()).transfer(5000000000000 * mintCount);
+			payable(NRC).transfer(5000000000000 * mintCount);
 		}
 	}
 
@@ -316,7 +316,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 		emit NFTMinted(msg.sender, newItemId);
 
-		payable(owner()).transfer(5000000000000);
+		payable(NRC).transfer(5000000000000);
 	}
 
 	function burn(uint256 tokenId) external saleIsActive {
