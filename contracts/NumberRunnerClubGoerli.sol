@@ -47,8 +47,8 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 			uint256 randomValue = uint256(keccak256(abi.encode(randomWords[i], i)));
 			// Ensure the random number is in the range [362, 9999]
 			randomValue = (randomValue % 14) + 2;
-			kingHands[i] = randomValue;		
-		}		
+			kingHands[i] = randomValue;
+		}
 	}
 
 	function buyKing(uint256 _color, uint256 value) external payable returns (bool) {
@@ -97,19 +97,8 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 		return isKingsHand;
 	}
 
-	function claimKingHand(uint256 tokenId) external returns (uint256) {
-		uint256 i = 0;
-		bool isKingHand = false;
-		for (i; i < 10; i++) {
-			if (tokenId == kingHands[i]) {
-				isKingHand = true;
-				break;
-			}
-		}
-		require(isKingHand);
+	function claimKingHand() external view returns (uint256) {
 		uint256 pieceShare = kingHandsPrize / 10;
-		require(pieceShare > 0);
-		kingHands[i] = 0;
 		return pieceShare;
 	}
 }
@@ -713,19 +702,18 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 		return baseRegistrar.nameExpires(labelId) + 90 days;
 	}
 
-	function claimKingHand(uint256 tokenId) external {
-		require(ownerOf(tokenId) == msg.sender);
-		uint256 pieceShare = kingAuction.claimKingHand(tokenId);
-		payable(msg.sender).transfer(pieceShare);
-	}
-
 	function claimPrizePool(uint256 tokenId) external saleIsNotActive {
+		require(ownerOf(tokenId) == msg.sender);
 		require(isClub(nameOfTokenId[tokenId], 3) || (isClub(nameOfTokenId[tokenId], 4)));
 		string memory name = nameOfTokenId[tokenId];
 		require(tokenIdOfName[name] != 0);
 		uint256 labelId = uint256(keccak256(abi.encodePacked(name)));
 		require(baseRegistrar.ownerOf(labelId) == msg.sender);
 		require(hasClaimedGeneral[tokenId] == false);
+		if (kingAuction.revealKingHand(tokenId)) {
+			uint256 pieceShare = kingAuction.claimKingHand();
+			payable(msg.sender).transfer(pieceShare);
+		}
 		// prizePool -= (prizePool / 10);
 		payable(msg.sender).transfer(prizePool / 10);
 		hasClaimedGeneral[tokenId] = true;
@@ -749,7 +737,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, Ownable, ReentrancyGuard {
 			require(address(this).balance >= killFee);
 			payable(msg.sender).transfer(killFee);
 		}
-		
+
 		_burn(tokenId);
 		emit NFTBurned(msg.sender, tokenId);
 	}
