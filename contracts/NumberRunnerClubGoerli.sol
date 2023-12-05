@@ -702,10 +702,9 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 	}
 
 	function claimPrizePool(uint256 tokenId) external saleIsNotActive {
-		require(ownerOf(tokenId) == msg.sender, "NRC07");
 		require(isClub(nameOfTokenId[tokenId], 3) || (isClub(nameOfTokenId[tokenId], 4)), "NRC08");
 		string memory name = nameOfTokenId[tokenId];
-		require(bytes(nameOfTokenId[tokenId]).length == 0, "NRC09");
+		require(bytes(nameOfTokenId[tokenId]).length != 0, "NRC09");
 		uint256 labelId = uint256(keccak256(abi.encodePacked(name)));
 		require(baseRegistrar.ownerOf(labelId) == msg.sender, "NRC06");
 		if (kingAuction.revealKingHand(tokenId)) {
