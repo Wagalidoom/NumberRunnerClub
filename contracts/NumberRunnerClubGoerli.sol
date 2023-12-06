@@ -79,7 +79,7 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase {
 			int128 result = ABDKMath64x64.exp_2(innerCalculation);
 
 			// Convert result to uint256 for comparison and scale it
-			uint256 resultUint = ABDKMath64x64.toUInt(ABDKMath64x64.mul(result, ABDKMath64x64.fromUInt(1e0)));
+			uint256 resultUint = ABDKMath64x64.toUInt(ABDKMath64x64.mul(result, ABDKMath64x64.fromUInt(1e18)));
 
 			return resultUint;
 		}
@@ -235,7 +235,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 		}
 
 		if (mintCount > 0) {
-			require(msg.value >= 5000000000000 * mintCount, "NRC05");
+			require(msg.value >= 50000000000000000 * mintCount, "NRC05");
 		}
 
 		for (uint8 i = 0; i < _n; i++) {
@@ -251,21 +251,21 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 			totalMinted++;
 			currentSupply++;
 			if (i < mintCount) {
-				prizePool += 1250000000000;
+				prizePool += 12500000000000000;
 				// Add the transaction fee to the piece's balance
-				updateShareType(1250000000000);
+				updateShareType(12500000000000000);
 			}
 
 			emit NFTMinted(msg.sender, newItemId);
 		}
 
 		if (mintCount > 0) {
-			payable(NRC).transfer(2500000000000 * mintCount);
+			payable(NRC).transfer(25000000000000000 * mintCount);
 		}
 	}
 
 	function mint(uint8 _pieceType, uint256 _stackedPiece) external payable {
-		require(msg.value >= 5000000000000, "NRC05");
+		require(msg.value >= 50000000000000000, "NRC05");
 		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "NRC03");
 		if (userColor[msg.sender] == 1) {
 			require(pieceDetails[_pieceType].blackMinted <= pieceDetails[_pieceType].maxSupply / 2, "NRC04");
@@ -308,14 +308,14 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 		userColor[msg.sender] == 1 ? pieceDetails[_pieceType].blackMinted++ : pieceDetails[_pieceType].whiteMinted++;
 		totalMinted++;
 		currentSupply++;
-		prizePool += 2500000000000;
+		prizePool += 12500000000000000;
 
 		// Add the transaction fee to the piece's balance
-		updateShareType(2500000000000);
+		updateShareType(12500000000000000);
 
 		emit NFTMinted(msg.sender, newItemId);
 
-		payable(NRC).transfer(5000000000000);
+		payable(NRC).transfer(25000000000000000);
 	}
 
 	function burn(uint256 tokenId) external saleIsActive {
@@ -364,7 +364,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 
 			if (bytes(nameOfTokenId[tokensId[i]]).length != 0) {
 				if (isClub(nameOfTokenId[tokensId[i]], 5)) {
-					killFee = 30000000000000 + (rewards * 10) / 100;
+					killFee = 300000000000000000 + (rewards * 10) / 100;
 				} else {
 					require(block.timestamp > expiration[tokensId[i]]);
 					killFee = 0;
@@ -372,9 +372,9 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 			} else {
 				// require(block.timestamp >= _unstakeTimestamps[tokensId[i]] + ONE_WEEK, "Cannot burn: One week waiting period is not over");
 				if (isForSale(tokensId[i])) {
-					killFee = 20000000000000 + (rewards * 10) / 100;
+					killFee = 200000000000000000 + (rewards * 10) / 100;
 				} else {
-					killFee = 10000000000000 + (rewards * 10) / 100;
+					killFee = 100000000000000000 + (rewards * 10) / 100;
 				}
 			}
 			_setNftPrice(tokensId[i], 0);
@@ -398,16 +398,16 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 
 		if (bytes(nameOfTokenId[tokenId]).length != 0) {
 			if (isClub(nameOfTokenId[tokenId], 5)) {
-				killFee = 30000000000000 + (rewards * 10) / 100;
+				killFee = 300000000000000000 + (rewards * 10) / 100;
 			} else {
 				require(block.timestamp > expiration[tokenId]);
 				killFee = 0;
 			}
 		} else {
 			if (isForSale(tokenId)) {
-				killFee = 20000000000000 + (rewards * 10) / 100;
+				killFee = 200000000000000000 + (rewards * 10) / 100;
 			} else {
-				killFee = 10000000000000 + (rewards * 10) / 100;
+				killFee = 100000000000000000 + (rewards * 10) / 100;
 			}
 		}
 		_killFeeDebt[msg.sender] += killFee;
@@ -667,7 +667,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 	}
 
 	function revealKingHand(uint256 tokenId) external payable {
-		require(msg.value >= 1000000000000); // reveal price fixed at 0.01 eth
+		require(msg.value >= 10000000000000000); // reveal price fixed at 0.01 eth
 		require(ownerOf(tokenId) == msg.sender, "NRC07");
 		require(getPieceType(tokenId) == 5);
 		prizePool += msg.value;
