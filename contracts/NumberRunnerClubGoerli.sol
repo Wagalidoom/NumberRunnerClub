@@ -13,12 +13,14 @@ using Strings for uint256;
 contract KingAuctionGoerli is VRFV2WrapperConsumerBase {
 	using ABDKMath64x64 for int128;
 
+	
+	// King auction constants
+	uint256 public constant auctionDuration = 21 days;
+	uint256 public constant minPrice = 2 ether;
+	uint256 public auctionEndTime;
+
 	address constant link = 0x326C977E6efc84E512bB9C30f76E30c160eD06FB;
 	address constant wrapper = 0x708701a1DfF4f478de54383E49a627eD4852C816;
-
-	uint256 auctionEndTime;
-	uint256 auctionDuration;
-	uint256 minPrice;
 	bool[2] public kingsInSale = [true, true];
 
 	bool isKingsHandSet = false;
@@ -28,10 +30,8 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase {
 
 	uint256 public recentRequestId;
 
-	constructor(uint256 endTime, uint256 duration, uint256 minAuctionPrice) VRFV2WrapperConsumerBase(link, wrapper) {
-		auctionEndTime = endTime;
-		auctionDuration = duration;
-		minPrice = minAuctionPrice;
+	constructor() VRFV2WrapperConsumerBase(link, wrapper) {
+		auctionEndTime = block.timestamp + auctionDuration;
 	}
 
 	function generateKingHands() public {
@@ -146,11 +146,6 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 	uint256 public currentSupply = 0;
 	uint256 public userStacked = 0;
 	uint256 public currentEpoch = 0;
-	// King auction constants
-	uint256 public constant auctionDuration = 21 days;
-	uint256 public constant minPrice = 2 ether;
-	uint256 public constant maxPrice = 20000 ether;
-	uint256 public auctionEndTime;
 	// L'epoch actuel
 	uint256 public epoch = 0;
 	uint256 prizePool;
@@ -202,9 +197,8 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 		emit globalSharesUpdated(currentShares);
 
 		spawnKings();
-		auctionEndTime = block.timestamp + auctionDuration;
 
-		kingAuction = new KingAuctionGoerli(auctionEndTime, auctionDuration, minPrice);
+		kingAuction = new KingAuctionGoerli();
 	}
 
 	modifier saleIsActive() {
