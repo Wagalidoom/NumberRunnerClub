@@ -1,22 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "abdk-libraries-solidity/ABDKMath64x64.sol";
 import "@ensdomains/ens-contracts/contracts/ethregistrar/BaseRegistrarImplementation.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/ownership/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 using Strings for uint256;
 
-contract KingAuctionGoerli is VRFV2WrapperConsumerBase {
-	using ABDKMath64x64 for int128;
+contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 
-	
 	// King auction constants
 	uint256 public constant auctionDuration = 21 days;
-	uint256 public constant minPrice = 2 ether;
+	uint256 public constant END_PRICE = 2 ether;
 	uint256 public auctionEndTime;
 
 	address constant link = 0x326C977E6efc84E512bB9C30f76E30c160eD06FB;
@@ -50,7 +48,7 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase {
 		}
 	}
 
-	function buyKing(uint256 _color, uint256 value) external payable returns (bool) {
+	function buyKing(uint256 _color, uint256 value) external payable onlyOwner returns (bool) {
 		require(block.timestamp <= auctionEndTime);
 		require(kingsInSale[_color - 1]);
 		uint256 currentPrice = getCurrentPrice();
@@ -61,31 +59,25 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase {
 	}
 
 	function getCurrentPrice() public view returns (uint256) {
-		uint256 ts = block.timestamp;
-		if (ts >= auctionEndTime) {
-			return minPrice * 1e18; // scale to match the precision
+		if (block.timestamp >= auctionEndTime) {
+			return END_PRICE;
 		} else {
-			uint256 timeElapsed = ts - (auctionEndTime - auctionDuration);
-			int128 _secondsElapsed = ABDKMath64x64.fromUInt(timeElapsed);
-			int128 _secondsInDay = ABDKMath64x64.fromUInt(60 * 60 * 24);
-			int128 _days = ABDKMath64x64.div(_secondsElapsed, _secondsInDay);
-			int128 x64x64 = _days;
+			uint256 elapsedDays = (block.timestamp - (auctionEndTime - auctionDuration)) / 1 days;
+			if (elapsedDays >= TOTAL_DECAY_DAYS) {
+				return END_PRICE;
+			}
 
-			int128 negOneThird = ABDKMath64x64.divi(-1, 3);
-			int128 one = ABDKMath64x64.fromUInt(1);
+			uint256 halfLife = 158;
 
-			int128 innerCalculation = ABDKMath64x64.add(ABDKMath64x64.mul(negOneThird, x64x64), one);
+			uint256 halfLifePeriodsElapsed = (elapsedDays * 10) / halfLife;
 
-			int128 result = ABDKMath64x64.exp_2(innerCalculation);
+			uint256 currentPrice = START_PRICE >> halfLifePeriodsElapsed;
 
-			// Convert result to uint256 for comparison and scale it
-			uint256 resultUint = ABDKMath64x64.toUInt(ABDKMath64x64.mul(result, ABDKMath64x64.fromUInt(1e18)));
-
-			return resultUint;
+			return currentPrice > END_PRICE ? currentPrice : END_PRICE;
 		}
 	}
 
-	function revealKingHand(uint256 tokenId) external view returns (bool) {
+	function revealKingHand(uint256 tokenId) external view onlyOwner returns (bool) {
 		bool isKingsHand = false;
 		for (uint i = 0; i < 10; i++) {
 			if (tokenId == kingHands[i]) {
@@ -155,7 +147,6 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 	mapping(uint256 => string) public nameOfTokenId; // Mapping of tokenId to the corresponding ENS name
 	mapping(uint256 => uint256) private _unstakeTimestamps;
 	mapping(uint256 => uint256) public expiration;
-	mapping(address => uint256) private _killFeeDebt;
 	PieceDetails[6] pieceDetails;
 
 	uint256[6] private typeStacked;
@@ -358,7 +349,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 
 			if (bytes(nameOfTokenId[tokensId[i]]).length != 0) {
 				if (isClub(nameOfTokenId[tokensId[i]], 5)) {
-					killFee = 300000000000000000 + (rewards * 10) / 100;
+					killFee = 30000000000000000 + (rewards * 10) / 100;
 				} else {
 					require(block.timestamp > expiration[tokensId[i]]);
 					killFee = 0;
@@ -366,9 +357,9 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 			} else {
 				// require(block.timestamp >= _unstakeTimestamps[tokensId[i]] + ONE_WEEK, "Cannot burn: One week waiting period is not over");
 				if (isForSale(tokensId[i])) {
-					killFee = 200000000000000000 + (rewards * 10) / 100;
+					killFee = 20000000000000000 + (rewards * 10) / 100;
 				} else {
-					killFee = 100000000000000000 + (rewards * 10) / 100;
+					killFee = 10000000000000000 + (rewards * 10) / 100;
 				}
 			}
 			_setNftPrice(tokensId[i], 0);
@@ -392,20 +383,18 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 
 		if (bytes(nameOfTokenId[tokenId]).length != 0) {
 			if (isClub(nameOfTokenId[tokenId], 5)) {
-				killFee = 300000000000000000 + (rewards * 10) / 100;
+				killFee = 30000000000000000 + (rewards * 10) / 100;
 			} else {
 				require(block.timestamp > expiration[tokenId]);
 				killFee = 0;
 			}
 		} else {
 			if (isForSale(tokenId)) {
-				killFee = 200000000000000000 + (rewards * 10) / 100;
+				killFee = 20000000000000000 + (rewards * 10) / 100;
 			} else {
-				killFee = 100000000000000000 + (rewards * 10) / 100;
+				killFee = 10000000000000000 + (rewards * 10) / 100;
 			}
 		}
-		_killFeeDebt[msg.sender] += killFee;
-		prizePool += killFee;
 		prizePool += (rewards * 10) / 100;
 
 		_burn(tokenId);
@@ -718,14 +707,6 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 		if (totalReward > 0) {
 			require(address(this).balance >= totalReward, "NRC10");
 			payable(msg.sender).transfer(totalReward);
-		}
-
-		uint256 killFee = _killFeeDebt[msg.sender];
-		if (killFee > 0) {
-			_killFeeDebt[msg.sender] = 0;
-			prizePool -= killFee;
-			require(address(this).balance >= killFee, "NRC10");
-			payable(msg.sender).transfer(killFee);
 		}
 
 		_burn(tokenId);
