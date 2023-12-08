@@ -5,7 +5,7 @@ import "@ensdomains/ens-contracts/contracts/ethregistrar/BaseRegistrarImplementa
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/ownership/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 using Strings for uint256;
@@ -14,6 +14,7 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 
 	// King auction constants
 	uint256 public constant auctionDuration = 21 days;
+	uint256 public constant START_PRICE = 20000 ether;
 	uint256 public constant END_PRICE = 2 ether;
 	uint256 public auctionEndTime;
 
@@ -63,7 +64,7 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 			return END_PRICE;
 		} else {
 			uint256 elapsedDays = (block.timestamp - (auctionEndTime - auctionDuration)) / 1 days;
-			if (elapsedDays >= TOTAL_DECAY_DAYS) {
+			if (elapsedDays >= auctionDuration) {
 				return END_PRICE;
 			}
 

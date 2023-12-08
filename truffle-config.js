@@ -18,11 +18,11 @@
  *
  */
 
-// require('dotenv').config();
-// const mnemonic = process.env["MNEMONIC"];
+require('dotenv').config();
+const privateKey = process.env["PRIVATE_KEY"];
 // const infuraProjectId = process.env["INFURA_PROJECT_ID"];
 
-// const HDWalletProvider = require('@truffle/hdwallet-provider');
+const HDWalletProvider = require('@truffle/hdwallet-provider');
 
 module.exports = {
     /**
@@ -44,18 +44,18 @@ module.exports = {
         // tab if you use this network and you must also set the `host`, `port` and `network_id`
         // options below to some value.
         //
-        development: {
-            host: "127.0.0.1",     // Localhost (default: none)
-            port: 8545,            // Standard Ethereum port (default: none)
-            network_id: "*",       // Any network (default: none)
-            gas: 50000000000 // Change this value
-        },
+        // development: {
+        //     host: "127.0.0.1",     // Localhost (default: none)
+        //     port: 8545,            // Standard Ethereum port (default: none)
+        //     network_id: "*",       // Any network (default: none)
+        //     gas: 50000000000 // Change this value
+        // },
         //
-        // goerli: {
-        //   provider: () => new HDWalletProvider(mnemonic, `https://goerli.infura.io/v3/${infuraProjectId}`),
-        //   network_id: 5,       // Goerli's id
-        //   chain_id: 5
-        // }
+        goerli: {
+          provider: () => new HDWalletProvider(privateKey, `https://eth-goerli.g.alchemy.com/v2/MGGlH-80oFX2RUjT-9F8pd6h6d3AG0hj`, 0, 1),
+          network_id: 5,       // Goerli's id
+          chain_id: 5
+        }
     },
 
     // Set default mocha options here, use special reporters etc.
@@ -66,13 +66,13 @@ module.exports = {
     // Configure your compilers
     compilers: {
         solc: {
-            version: "0.8.13",      // Fetch exact version from solc-bin
+            version: "0.8.20",      // Fetch exact version from solc-bin
             settings: {          // See the solidity docs for advice about optimization and evmVersion
                 optimizer: {
                     enabled: true,
                     runs: 1
                 },
-                evmVersion: "byzantium"
+                evmVersion: "shanghai"
             }
         }
     }
