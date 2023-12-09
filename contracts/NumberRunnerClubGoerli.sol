@@ -11,11 +11,11 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 using Strings for uint256;
 
 contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
-
 	// King auction constants
-	uint256 public constant auctionDuration = 21 days;
+    uint256 constant AUCTION_DURATION = 21 days;
 	uint256 public constant START_PRICE = 20000 ether;
 	uint256 public constant END_PRICE = 2 ether;
+    uint256 constant DAILY_SHIFT = 13;
 	uint256 public auctionEndTime;
 
 	address constant link = 0x326C977E6efc84E512bB9C30f76E30c160eD06FB;
@@ -29,8 +29,26 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 
 	uint256 public recentRequestId;
 
+	uint256 constant PRECISION = 1e18;
+	uint256 constant bit1 = 999989423469314432; // 0.5 ^ 1/65536 * (10 ** 18)
+	uint256 constant bit2 = 999978847050491904; // 0.5 ^ 2/65536 * (10 ** 18)
+	uint256 constant bit3 = 999957694548431104;
+	uint256 constant bit4 = 999915390886613504;
+	uint256 constant bit5 = 999830788931929088;
+	uint256 constant bit6 = 999661606496243712;
+	uint256 constant bit7 = 999323327502650752;
+	uint256 constant bit8 = 998647112890970240;
+	uint256 constant bit9 = 997296056085470080;
+	uint256 constant bit10 = 994599423483633152;
+	uint256 constant bit11 = 989228013193975424;
+	uint256 constant bit12 = 978572062087700096;
+	uint256 constant bit13 = 957603280698573696;
+	uint256 constant bit14 = 917004043204671232;
+	uint256 constant bit15 = 840896415253714560;
+	uint256 constant bit16 = 707106781186547584;
+
 	constructor() VRFV2WrapperConsumerBase(link, wrapper) {
-		auctionEndTime = block.timestamp + auctionDuration;
+		auctionEndTime = block.timestamp + AUCTION_DURATION;
 	}
 
 	function generateKingHands() public {
@@ -60,23 +78,18 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 	}
 
 	function getCurrentPrice() public view returns (uint256) {
-		if (block.timestamp >= auctionEndTime) {
-			return END_PRICE;
-		} else {
-			uint256 elapsedDays = (block.timestamp - (auctionEndTime - auctionDuration)) / 1 days;
-			if (elapsedDays >= auctionDuration) {
-				return END_PRICE;
-			}
-
-			uint256 halfLife = 158;
-
-			uint256 halfLifePeriodsElapsed = (elapsedDays * 10) / halfLife;
-
-			uint256 currentPrice = START_PRICE >> halfLifePeriodsElapsed;
-
-			return currentPrice > END_PRICE ? currentPrice : END_PRICE;
-		}
-	}
+        if (block.timestamp >= auctionEndTime) {
+            return END_PRICE;
+        } else {
+            uint256 elapsed = block.timestamp - (auctionEndTime - AUCTION_DURATION);
+            uint256 daysPast = elapsed / 1 days;
+            uint256 premium = START_PRICE >> (daysPast * DAILY_SHIFT);
+            uint256 partDay = (elapsed % 1 days) * PRECISION / 1 days;
+            uint256 fraction = (partDay * (2 ** 16)) / PRECISION;
+            uint256 totalPremium = addFractionalPremium(fraction, premium);
+            return totalPremium > END_PRICE ? totalPremium : END_PRICE;
+        }
+    }
 
 	function revealKingHand(uint256 tokenId) external view onlyOwner returns (bool) {
 		bool isKingsHand = false;
@@ -92,6 +105,58 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 	function claimKingHand() external view returns (uint256) {
 		uint256 pieceShare = kingHandsPrize / 10;
 		return pieceShare;
+	}
+
+	function addFractionalPremium(uint256 fraction, uint256 premium) internal pure returns (uint256) {
+		if (fraction & (1 << 0) != 0) {
+			premium = (premium * bit1) / PRECISION;
+		}
+		if (fraction & (1 << 1) != 0) {
+			premium = (premium * bit2) / PRECISION;
+		}
+		if (fraction & (1 << 2) != 0) {
+			premium = (premium * bit3) / PRECISION;
+		}
+		if (fraction & (1 << 3) != 0) {
+			premium = (premium * bit4) / PRECISION;
+		}
+		if (fraction & (1 << 4) != 0) {
+			premium = (premium * bit5) / PRECISION;
+		}
+		if (fraction & (1 << 5) != 0) {
+			premium = (premium * bit6) / PRECISION;
+		}
+		if (fraction & (1 << 6) != 0) {
+			premium = (premium * bit7) / PRECISION;
+		}
+		if (fraction & (1 << 7) != 0) {
+			premium = (premium * bit8) / PRECISION;
+		}
+		if (fraction & (1 << 8) != 0) {
+			premium = (premium * bit9) / PRECISION;
+		}
+		if (fraction & (1 << 9) != 0) {
+			premium = (premium * bit10) / PRECISION;
+		}
+		if (fraction & (1 << 10) != 0) {
+			premium = (premium * bit11) / PRECISION;
+		}
+		if (fraction & (1 << 11) != 0) {
+			premium = (premium * bit12) / PRECISION;
+		}
+		if (fraction & (1 << 12) != 0) {
+			premium = (premium * bit13) / PRECISION;
+		}
+		if (fraction & (1 << 13) != 0) {
+			premium = (premium * bit14) / PRECISION;
+		}
+		if (fraction & (1 << 14) != 0) {
+			premium = (premium * bit15) / PRECISION;
+		}
+		if (fraction & (1 << 15) != 0) {
+			premium = (premium * bit16) / PRECISION;
+		}
+		return premium;
 	}
 }
 
