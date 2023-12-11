@@ -12,10 +12,10 @@ using Strings for uint256;
 
 contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 	// King auction constants
-    uint256 constant AUCTION_DURATION = 21 days;
+	uint256 constant AUCTION_DURATION = 21 days;
 	uint256 public constant START_PRICE = 20000 ether;
 	uint256 public constant END_PRICE = 2 ether;
-    uint256 constant DAILY_SHIFT = 13;
+	uint256 constant DAILY_SHIFT = 13;
 	uint256 public auctionEndTime;
 
 	address constant link = 0x326C977E6efc84E512bB9C30f76E30c160eD06FB;
@@ -78,18 +78,25 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 	}
 
 	function getCurrentPrice() public view returns (uint256) {
-        if (block.timestamp >= auctionEndTime) {
-            return END_PRICE;
-        } else {
-            uint256 elapsed = block.timestamp - (auctionEndTime - AUCTION_DURATION);
-            uint256 daysPast = elapsed / 1 days;
-            uint256 premium = START_PRICE >> (daysPast * DAILY_SHIFT);
-            uint256 partDay = (elapsed % 1 days) * PRECISION / 1 days;
-            uint256 fraction = (partDay * (2 ** 16)) / PRECISION;
-            uint256 totalPremium = addFractionalPremium(fraction, premium);
-            return totalPremium > END_PRICE ? totalPremium : END_PRICE;
-        }
-    }
+		if (block.timestamp >= auctionEndTime) {
+			return END_PRICE;
+		}
+
+		uint256 elapsed = block.timestamp - (auctionEndTime - AUCTION_DURATION);
+		uint256 daysPast = (elapsed * PRECISION) / 1 days;
+		uint256 intDays = daysPast / PRECISION;
+
+		uint256 premium = START_PRICE >> intDays;
+		uint256 partDay = (daysPast - intDays * PRECISION);
+		uint256 fraction = (partDay * (2 ** 16)) / PRECISION;
+		uint256 currentPrice = addFractionalPremium(fraction, premium);
+
+		if (currentPrice < END_PRICE) {
+			currentPrice = END_PRICE;
+		}
+
+		return currentPrice;
+	}
 
 	function revealKingHand(uint256 tokenId) external view onlyOwner returns (bool) {
 		bool isKingsHand = false;
