@@ -78,25 +78,26 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 	}
 
 	function getCurrentPrice() public view returns (uint256) {
-		if (block.timestamp >= auctionEndTime) {
-			return END_PRICE;
-		}
+    if (block.timestamp >= auctionEndTime) {
+        return END_PRICE;
+    }
 
-		uint256 elapsed = block.timestamp - (auctionEndTime - AUCTION_DURATION);
-		uint256 daysPast = (elapsed * PRECISION) / 1 days;
-		uint256 intDays = daysPast / PRECISION;
+    uint256 elapsed = block.timestamp - (auctionEndTime - AUCTION_DURATION);
+    uint256 daysPast = (elapsed * PRECISION) / 1 days;
+    uint256 intDays = daysPast / (PRECISION * 2);
 
-		uint256 premium = START_PRICE >> intDays;
-		uint256 partDay = (daysPast - intDays * PRECISION);
-		uint256 fraction = (partDay * (2 ** 16)) / PRECISION;
-		uint256 currentPrice = addFractionalPremium(fraction, premium);
+    uint256 premium = START_PRICE >> intDays;
+    uint256 partDay = (daysPast - intDays * PRECISION);
+    uint256 fraction = (partDay * (2 ** 16)) / PRECISION;
+    uint256 currentPrice = addFractionalPremium(fraction, premium);
 
-		if (currentPrice < END_PRICE) {
-			currentPrice = END_PRICE;
-		}
+    if (currentPrice < END_PRICE) {
+        currentPrice = END_PRICE;
+    }
 
-		return currentPrice;
-	}
+    return currentPrice;
+}
+
 
 	function revealKingHand(uint256 tokenId) external view onlyOwner returns (bool) {
 		bool isKingsHand = false;
@@ -638,7 +639,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 		// Reset reward to 0
 		unclaimedRewards[tokenId] = 0;
 		emit UpdateUnclaimedRewards(tokenId, 0);
-		uint256 taxAmount = (totalReward * 20) / 100;
+		uint256 taxAmount = (totalReward * 20) / 100 +  (price * 20) / 100;
 
 		prizePool += taxAmount / 2;
 		uint256 holdersTax = taxAmount / 2;
@@ -650,11 +651,11 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 		bool success;
 		if (totalReward > 0) {
 			// Ensure the contract has enough balance to pay the seller
-			require(address(this).balance >= totalReward - taxAmount + price);
+			require(address(this).balance >= totalReward - taxAmount + (price * 80 / 100));
 			(success, ) = payable(seller).call{ value: totalReward - taxAmount + price }("");
 		} else {
 			require(address(this).balance >= price);
-			(success, ) = payable(seller).call{ value: price }("");
+			(success, ) = payable(seller).call{ value: (price * 80 / 100) }("");
 		}
 
 		require(success);
