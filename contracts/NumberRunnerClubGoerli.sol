@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "abdk-libraries-solidity/ABDKMath64x64.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 using Strings for uint256;
@@ -13,9 +14,7 @@ using Strings for uint256;
 contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 	// King auction constants
 	uint256 constant AUCTION_DURATION = 21 days;
-	uint256 public constant START_PRICE = 20000 ether;
 	uint256 public constant END_PRICE = 2 ether;
-	uint256 constant DAILY_SHIFT = 13;
 	uint256 public auctionEndTime;
 
 	address constant link = 0x326C977E6efc84E512bB9C30f76E30c160eD06FB;
@@ -26,26 +25,7 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 
 	uint256 kingHandsPrize = 0;
 	uint256[10] internal kingHands;
-
 	uint256 public recentRequestId;
-
-	uint256 constant PRECISION = 1e18;
-	uint256 constant bit1 = 999989423469314432; // 0.5 ^ 1/65536 * (10 ** 18)
-	uint256 constant bit2 = 999978847050491904; // 0.5 ^ 2/65536 * (10 ** 18)
-	uint256 constant bit3 = 999957694548431104;
-	uint256 constant bit4 = 999915390886613504;
-	uint256 constant bit5 = 999830788931929088;
-	uint256 constant bit6 = 999661606496243712;
-	uint256 constant bit7 = 999323327502650752;
-	uint256 constant bit8 = 998647112890970240;
-	uint256 constant bit9 = 997296056085470080;
-	uint256 constant bit10 = 994599423483633152;
-	uint256 constant bit11 = 989228013193975424;
-	uint256 constant bit12 = 978572062087700096;
-	uint256 constant bit13 = 957603280698573696;
-	uint256 constant bit14 = 917004043204671232;
-	uint256 constant bit15 = 840896415253714560;
-	uint256 constant bit16 = 707106781186547584;
 
 	constructor() VRFV2WrapperConsumerBase(link, wrapper) {
 		auctionEndTime = block.timestamp + AUCTION_DURATION;
@@ -78,26 +58,33 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 	}
 
 	function getCurrentPrice() public view returns (uint256) {
-    if (block.timestamp >= auctionEndTime) {
-        return END_PRICE;
-    }
+		uint256 ts = block.timestamp;
+		if (ts >= auctionEndTime) {
+			return END_PRICE; // scale to match the precision
+		} else {
+			uint256 timeElapsed = ts - (auctionEndTime - AUCTION_DURATION);
+			int128 _secondsElapsed = ABDKMath64x64.fromUInt(timeElapsed);
+			int128 _secondsInDay = ABDKMath64x64.fromUInt(60 * 60 * 24);
+			int128 _days = ABDKMath64x64.div(_secondsElapsed, _secondsInDay);
+			int128 x64x64 = _days;
 
-    uint256 elapsed = block.timestamp - (auctionEndTime - AUCTION_DURATION);
-    uint256 daysPast = (elapsed * PRECISION) / 1 days;
-    uint256 intDays = daysPast / (PRECISION * 2);
+			int128 negOneThird = ABDKMath64x64.divi(-100, 158);
+			int128 one = ABDKMath64x64.fromUInt(1);
 
-    uint256 premium = START_PRICE >> intDays;
-    uint256 partDay = (daysPast - intDays * PRECISION);
-    uint256 fraction = (partDay * (2 ** 16)) / PRECISION;
-    uint256 currentPrice = addFractionalPremium(fraction, premium);
+			int128 innerCalculation = ABDKMath64x64.add(ABDKMath64x64.mul(negOneThird, x64x64), one);
 
-    if (currentPrice < END_PRICE) {
-        currentPrice = END_PRICE;
-    }
+			int128 result = ABDKMath64x64.exp_2(innerCalculation);
 
-    return currentPrice;
-}
+			// Convert result to uint256 for comparison and scale it
+			uint256 resultUint = ABDKMath64x64.toUInt(ABDKMath64x64.mul(result, ABDKMath64x64.fromUInt(1e18))) * 10000;
 
+			if (resultUint < END_PRICE) {
+				resultUint = END_PRICE;
+			}
+
+			return resultUint;
+		}
+	}
 
 	function revealKingHand(uint256 tokenId) external view onlyOwner returns (bool) {
 		bool isKingsHand = false;
@@ -113,58 +100,6 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 	function claimKingHand() external view returns (uint256) {
 		uint256 pieceShare = kingHandsPrize / 10;
 		return pieceShare;
-	}
-
-	function addFractionalPremium(uint256 fraction, uint256 premium) internal pure returns (uint256) {
-		if (fraction & (1 << 0) != 0) {
-			premium = (premium * bit1) / PRECISION;
-		}
-		if (fraction & (1 << 1) != 0) {
-			premium = (premium * bit2) / PRECISION;
-		}
-		if (fraction & (1 << 2) != 0) {
-			premium = (premium * bit3) / PRECISION;
-		}
-		if (fraction & (1 << 3) != 0) {
-			premium = (premium * bit4) / PRECISION;
-		}
-		if (fraction & (1 << 4) != 0) {
-			premium = (premium * bit5) / PRECISION;
-		}
-		if (fraction & (1 << 5) != 0) {
-			premium = (premium * bit6) / PRECISION;
-		}
-		if (fraction & (1 << 6) != 0) {
-			premium = (premium * bit7) / PRECISION;
-		}
-		if (fraction & (1 << 7) != 0) {
-			premium = (premium * bit8) / PRECISION;
-		}
-		if (fraction & (1 << 8) != 0) {
-			premium = (premium * bit9) / PRECISION;
-		}
-		if (fraction & (1 << 9) != 0) {
-			premium = (premium * bit10) / PRECISION;
-		}
-		if (fraction & (1 << 10) != 0) {
-			premium = (premium * bit11) / PRECISION;
-		}
-		if (fraction & (1 << 11) != 0) {
-			premium = (premium * bit12) / PRECISION;
-		}
-		if (fraction & (1 << 12) != 0) {
-			premium = (premium * bit13) / PRECISION;
-		}
-		if (fraction & (1 << 13) != 0) {
-			premium = (premium * bit14) / PRECISION;
-		}
-		if (fraction & (1 << 14) != 0) {
-			premium = (premium * bit15) / PRECISION;
-		}
-		if (fraction & (1 << 15) != 0) {
-			premium = (premium * bit16) / PRECISION;
-		}
-		return premium;
 	}
 }
 
@@ -639,7 +574,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 		// Reset reward to 0
 		unclaimedRewards[tokenId] = 0;
 		emit UpdateUnclaimedRewards(tokenId, 0);
-		uint256 taxAmount = (totalReward * 20) / 100 +  (price * 20) / 100;
+		uint256 taxAmount = (totalReward * 20) / 100 + (price * 20) / 100;
 
 		prizePool += taxAmount / 2;
 		uint256 holdersTax = taxAmount / 2;
@@ -651,11 +586,11 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 		bool success;
 		if (totalReward > 0) {
 			// Ensure the contract has enough balance to pay the seller
-			require(address(this).balance >= totalReward - taxAmount + (price * 80 / 100));
+			require(address(this).balance >= totalReward - taxAmount + ((price * 80) / 100));
 			(success, ) = payable(seller).call{ value: totalReward - taxAmount + price }("");
 		} else {
 			require(address(this).balance >= price);
-			(success, ) = payable(seller).call{ value: (price * 80 / 100) }("");
+			(success, ) = payable(seller).call{ value: ((price * 80) / 100) }("");
 		}
 
 		require(success);
