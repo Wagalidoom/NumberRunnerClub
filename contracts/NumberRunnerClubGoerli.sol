@@ -235,7 +235,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 		for (uint8 i = 0; i < _n; i++) {
 			uint256 newItemId = startId + 2 * i;
 			_mint(msg.sender, newItemId);
-			_setTokenURI(newItemId, string(abi.encodePacked("ipfs://QmUSL1sxdiSPMUL1s39qpjENXi6kQTmLY1icq9KVjYmc4N/NumberRunner", newItemId.toString(), ".json")));
+			_setTokenURI(newItemId, string(abi.encodePacked("ipfs://QmceFYj1a3xvhuwqb5dNstbzZ5FWNfkWfiDvPkVwvgfQpm/NumberRunner", newItemId.toString(), ".json")));
 			pieceDetails[5].totalMinted++;
 			unclaimedRewards[newItemId] = 0;
 			nftShares[newItemId] = 0;
@@ -293,7 +293,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 		}
 
 		_mint(msg.sender, newItemId);
-		_setTokenURI(newItemId, string(abi.encodePacked("ipfs://QmUSL1sxdiSPMUL1s39qpjENXi6kQTmLY1icq9KVjYmc4N/NumberRunner", newItemId.toString(), ".json")));
+		_setTokenURI(newItemId, string(abi.encodePacked("ipfs://QmceFYj1a3xvhuwqb5dNstbzZ5FWNfkWfiDvPkVwvgfQpm/NumberRunner", newItemId.toString(), ".json")));
 		unclaimedRewards[newItemId] = 0;
 		nftShares[newItemId] = 0;
 		_unstakeTimestamps[newItemId] = block.timestamp;
@@ -725,7 +725,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 	function spawnKings() private {
 		// Black king
 		_mint(address(this), 0);
-		_setTokenURI(0, "");
+		_setTokenURI(0, "ipfs://QmceFYj1a3xvhuwqb5dNstbzZ5FWNfkWfiDvPkVwvgfQpm/NumberRunner0.json");
 		pieceDetails[0].totalMinted++;
 		pieceDetails[0].blackMinted++;
 		totalMinted++;
@@ -738,7 +738,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 
 		// White king
 		_mint(address(this), 1);
-		_setTokenURI(1, "");
+		_setTokenURI(1, "ipfs://QmceFYj1a3xvhuwqb5dNstbzZ5FWNfkWfiDvPkVwvgfQpm/NumberRunner1.json");
 		pieceDetails[0].totalMinted++;
 		pieceDetails[0].whiteMinted++;
 		totalMinted++;
