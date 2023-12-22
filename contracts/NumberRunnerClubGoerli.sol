@@ -47,7 +47,7 @@ contract KingAuctionGoerli is VRFV2WrapperConsumerBase, Ownable {
 		}
 	}
 
-	function buyKing(uint256 _color, uint256 value) external payable onlyOwner returns (bool) {
+	function buyKing(uint256 _color, uint256 value) external onlyOwner returns (bool) {
 		require(block.timestamp <= auctionEndTime);
 		require(kingsInSale[_color - 1]);
 		uint256 currentPrice = getCurrentPrice();
@@ -358,7 +358,7 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 
 			if (bytes(nameOfTokenId[tokensId[i]]).length != 0) {
 				if (isClub(nameOfTokenId[tokensId[i]], 5)) {
-					killFee = 30000000000000000 + (rewards * 10) / 100;
+					killFee = 150000000000000000 + (rewards * 10) / 100;
 				} else {
 					require(block.timestamp > expiration[tokensId[i]]);
 					killFee = 0;
@@ -366,9 +366,9 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 			} else {
 				// require(block.timestamp >= _unstakeTimestamps[tokensId[i]] + ONE_WEEK, "Cannot burn: One week waiting period is not over");
 				if (isForSale(tokensId[i])) {
-					killFee = 20000000000000000 + (rewards * 10) / 100;
+					killFee = 100000000000000000 + (rewards * 10) / 100;
 				} else {
-					killFee = 10000000000000000 + (rewards * 10) / 100;
+					killFee = 50000000000000000 + (rewards * 10) / 100;
 				}
 			}
 			_setNftPrice(tokensId[i], 0);
@@ -392,16 +392,16 @@ contract NumberRunnerClubGoerli is ERC721URIStorage, ReentrancyGuard {
 
 		if (bytes(nameOfTokenId[tokenId]).length != 0) {
 			if (isClub(nameOfTokenId[tokenId], 5)) {
-				killFee = 30000000000000000 + (rewards * 10) / 100;
+				killFee = 150000000000000000 + (rewards * 10) / 100;
 			} else {
 				require(block.timestamp > expiration[tokenId]);
 				killFee = 0;
 			}
 		} else {
 			if (isForSale(tokenId)) {
-				killFee = 20000000000000000 + (rewards * 10) / 100;
+				killFee = 100000000000000000 + (rewards * 10) / 100;
 			} else {
-				killFee = 10000000000000000 + (rewards * 10) / 100;
+				killFee = 50000000000000000 + (rewards * 10) / 100;
 			}
 		}
 		prizePool += (rewards * 10) / 100;
