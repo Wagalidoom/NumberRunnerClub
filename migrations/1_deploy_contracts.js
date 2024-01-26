@@ -1,7 +1,7 @@
-const NumberRunnerClubGoerli = artifacts.require("NumberRunnerClubGoerli");
+const NumberRunnerClub = artifacts.require("NumberRunnerClub");
 // const test = artifacts.require("ExponentialFunction");
 
 module.exports = function (deployer) {
-    deployer.deploy(NumberRunnerClubGoerli);
+    deployer.deploy(NumberRunnerClub);
     // deployer.deploy(test);
 };

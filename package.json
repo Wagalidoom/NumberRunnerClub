@@ -1,5 +1,8 @@
 {
   "dependencies": {
+    "@chainlink/contracts": "^0.8.0",
+    "@ensdomains/ens-contracts": "^1.0.1",
+    "@openzeppelin/contracts": "^4.9.5",
     "@truffle/hdwallet-provider": "^2.1.15",
     "abdk-libraries-solidity": "^3.2.0",
     "dotenv": "^16.3.1",
@@ -8,9 +11,6 @@
     "truffle-contract-size": "^2.0.1"
   },
   "devDependencies": {
-    "@chainlink/contracts": "^0.5.1",
-    "@ensdomains/ens-contracts": "^0.0.21",
-    "@openzeppelin/contracts": "^4.9.5",
-    "truffle": "^5.8.4"
+    "truffle-plugin-verify": "^0.6.7"
   }
 }

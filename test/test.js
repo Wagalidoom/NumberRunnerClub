@@ -1,13 +1,21 @@
-const DutchAuction = artifacts.require("ExponentialFunction");
+const NumberRunnerClub = artifacts.require("NumberRunnerClub");
+const ethers = require("ethers");
+const namehash = require('eth-ens-namehash');
+const BigNumber = require('bignumber.js');
 
-module.exports = async function(callback) {
+const userA = "0x9106D192e10AAdd5288C4f264E1F3988aD58dCAb";
+
+const getCurrentPrice = async (instance, fromAddress) => {
+    const r = await instance.getCurrentPrice({ from: fromAddress });
+    console.log(r);
+};
+
+
+module.exports = async function (callback) {
     try {
-        // Obtenir une instance du contrat
-        const dutchAuction = await DutchAuction.deployed();
-        const number = 1;
-        // Appeler une fonction qui ne modifie pas l'état du contrat
-        const price = await dutchAuction.calculateFunction(number*86400);
-        console.log("Price: " + (price * 10000/2**64).toString());
+        const instance = await NumberRunnerClub.deployed();
+        await getCurrentPrice(instance, userA);
+
 
         callback();
     } catch (error) {

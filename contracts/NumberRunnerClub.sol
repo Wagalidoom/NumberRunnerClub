@@ -1,77 +1,55 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.18;
 
-import "abdk-libraries-solidity/ABDKMath64x64.sol";
 import "@ensdomains/ens-contracts/contracts/ethregistrar/BaseRegistrarImplementation.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@chainlink/contracts/src/v0.8/vrf/VRFV2WrapperConsumerBase.sol";
+import "abdk-libraries-solidity/ABDKMath64x64.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 using Strings for uint256;
 
 contract KingAuction is VRFV2WrapperConsumerBase, Ownable {
-	using ABDKMath64x64 for int128;
+	uint256 constant AUCTION_DURATION = 21 days;
+	uint256 public constant END_PRICE = 2 ether;
+	uint256 public auctionEndTime;
 
-	uint256 auctionEndTime;
-	uint256 auctionDuration;
-	uint256 minPrice;
+	address constant link = 0x326C977E6efc84E512bB9C30f76E30c160eD06FB;
+	address constant wrapper = 0x708701a1DfF4f478de54383E49a627eD4852C816;
 	bool[2] public kingsInSale = [true, true];
 
 	bool isKingsHandSet = false;
 
 	uint256 kingHandsPrize = 0;
 	uint256[10] internal kingHands;
-
 	uint256 public recentRequestId;
 
-	constructor(uint256 endTime, uint256 duration, uint256 minAuctionPrice, address _vrfCoordinator, address _link) VRFV2WrapperConsumerBase(_link, _vrfCoordinator) {
-		auctionEndTime = endTime;
-		auctionDuration = duration;
-		minPrice = minAuctionPrice;
+	constructor() VRFV2WrapperConsumerBase(link, wrapper) {
+		auctionEndTime = block.timestamp + AUCTION_DURATION;
 	}
 
 	function generateKingHands() public {
-		recentRequestId = requestRandomness(10000000, 15, 10);
-	}
-
-	function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
-		require(!isKingsHandSet, "King's Hands already generated");
-		require(requestId == recentRequestId, "Wrong request ID");
-		uint256 index = 0;
-		for (uint i = 0; i < randomWords.length; i++) {
-			uint256 randomValue = uint256(keccak256(abi.encode(randomWords[i], i)));
-			// Ensure the random number is in the range [362, 9999]
-			randomValue = (randomValue % (9999 - 362 + 1)) + 362;
-			// Check if the number is already in the array
-			bool exists = false;
-			for (uint j = 0; j < index; j++) {
-				if (kingHands[j] == randomValue) {
-					exists = true;
-					break;
-				}
-			}
-			// If number does not exist in the array, add it
-			if (!exists) {
-				kingHands[index] = randomValue;
-				index++;
-				// If we have found 10 unique random numbers, exit the loop
-				if (index == 10) {
-					break;
-				}
-			}
-		}
-		// If we didn't find 10 unique random numbers, revert the transaction
-		require(index == 10, "Not enough unique random numbers generated");
+		require(!isKingsHandSet, "KA01");
+		recentRequestId = requestRandomness(1000000, 3, 10);
 		isKingsHandSet = true;
 	}
 
-	function buyKing(uint256 _color, uint256 value) external payable returns (bool) {
-		require(block.timestamp <= auctionEndTime, "Auction already ended.");
-		require(kingsInSale[_color - 1], "This king's color is already sold");
+	function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
+		require(requestId == recentRequestId, "KA02");
+		for (uint i = 0; i < 10; i++) {
+			uint256 randomValue = uint256(keccak256(abi.encode(randomWords[i], i)));
+			randomValue = (randomValue % 9637) + 362;
+			kingHands[i] = randomValue;
+		}
+	}
+
+	function buyKing(uint256 _color, uint256 value) external onlyOwner returns (bool) {
+		require(block.timestamp <= auctionEndTime);
+		require(kingsInSale[_color - 1]);
 		uint256 currentPrice = getCurrentPrice();
-		require(value >= currentPrice, "The bid is too low.");
+		require(value >= currentPrice);
 		kingHandsPrize += value;
 		kingsInSale[_color - 1] = false;
 		return true;
@@ -80,29 +58,33 @@ contract KingAuction is VRFV2WrapperConsumerBase, Ownable {
 	function getCurrentPrice() public view returns (uint256) {
 		uint256 ts = block.timestamp;
 		if (ts >= auctionEndTime) {
-			return minPrice * 1e18; // scale to match the precision
+			return END_PRICE;
 		} else {
-			uint256 timeElapsed = ts - (auctionEndTime - auctionDuration);
+			uint256 timeElapsed = ts - (auctionEndTime - AUCTION_DURATION);
 			int128 _secondsElapsed = ABDKMath64x64.fromUInt(timeElapsed);
 			int128 _secondsInDay = ABDKMath64x64.fromUInt(60 * 60 * 24);
 			int128 _days = ABDKMath64x64.div(_secondsElapsed, _secondsInDay);
 			int128 x64x64 = _days;
 
-			int128 negOneThird = ABDKMath64x64.divi(-1, 3);
+			int128 negOneThird = ABDKMath64x64.divi(-100, 158);
 			int128 one = ABDKMath64x64.fromUInt(1);
 
 			int128 innerCalculation = ABDKMath64x64.add(ABDKMath64x64.mul(negOneThird, x64x64), one);
 
 			int128 result = ABDKMath64x64.exp_2(innerCalculation);
 
-			// Convert result to uint256 for comparison and scale it
-			uint256 resultUint = ABDKMath64x64.toUInt(ABDKMath64x64.mul(result, ABDKMath64x64.fromUInt(1e0)));
+			uint256 resultUint = ABDKMath64x64.toUInt(ABDKMath64x64.mul(result, ABDKMath64x64.fromUInt(1e18)));
+			uint256 resultEther = resultUint * 10000;
 
-			return resultUint;
+			if (resultEther < END_PRICE) {
+				resultEther = END_PRICE;
+			}
+
+			return resultEther;
 		}
 	}
 
-	function revealKingHand(uint256 tokenId) external view returns (bool) {
+	function revealKingHand(uint256 tokenId) external view onlyOwner returns (bool) {
 		bool isKingsHand = false;
 		for (uint i = 0; i < 10; i++) {
 			if (tokenId == kingHands[i]) {
@@ -113,24 +95,13 @@ contract KingAuction is VRFV2WrapperConsumerBase, Ownable {
 		return isKingsHand;
 	}
 
-	function claimKingHand(uint256 tokenId) external returns (uint256) {
-		uint256 i = 0;
-		bool isKingHand = false;
-		for (i; i < 10; i++) {
-			if (tokenId == kingHands[i]) {
-				isKingHand = true;
-				break;
-			}
-		}
-		require(isKingHand, "Token must be a King's Hand");
+	function claimKingHand() external view returns (uint256) {
 		uint256 pieceShare = kingHandsPrize / 10;
-		require(pieceShare > 0, "Incorrect Piece Share");
-		kingHands[i] = 0;
 		return pieceShare;
 	}
 }
 
-contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
+contract NumberRunnerClub is ERC721URIStorage, ReentrancyGuard {
 	event NFTPurchased(address buyer, address seller, uint256 tokenId, uint256 price);
 	event KingBought(address buyer, uint256 price, uint256 tokenId, string ensName);
 	event ColorChoosed(uint8 color, address user);
@@ -148,6 +119,9 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	event NFTKilled(uint256 tokenId);
 
 	uint256 constant ONE_WEEK = 1 weeks;
+
+	address constant _baseRegistrar = 0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85;
+	address constant NRC = 0xA113BEFb068c6583acf123C86cdbBB24B35D2D37;
 
 	struct PieceDetails {
 		uint256 maxSupply;
@@ -171,12 +145,6 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	uint256 public currentSupply = 0;
 	uint256 public userStacked = 0;
 	uint256 public currentEpoch = 0;
-	// King auction constants
-	uint256 public constant auctionDuration = 21 days;
-	uint256 public constant minPrice = 2 ether;
-	uint256 public constant maxPrice = 20000 ether;
-	uint256 public auctionEndTime;
-	// L'epoch actuel
 	uint256 public epoch = 0;
 	uint256 prizePool;
 
@@ -185,25 +153,20 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	mapping(uint256 => string) public nameOfTokenId; // Mapping of tokenId to the corresponding ENS name
 	mapping(uint256 => uint256) private _unstakeTimestamps;
 	mapping(uint256 => uint256) public expiration;
-	mapping(address => uint256) private _killFeeDebt;
 	PieceDetails[6] pieceDetails;
 
 	uint256[6] private typeStacked;
-
-	// La somme totale de tous les sharePerTokenAtEpoch pour chaque type de pièce
 	uint256[][6] shareTypeAccumulator;
-	// Le sharePerToken de l'utilisateur à l'epoch où il a stacké son dernier token
 	mapping(uint256 => uint256) nftShares;
 
-	mapping(uint256 => uint256) public unclaimedRewards; // Mapping des récompenses non claim associées au nft
-	mapping(address => uint8) public userColor; // Mapping of user address to chosen color
-	mapping(address => uint256) private burnedCount; // Mapping of user address to counter of nft burned
-	mapping(address => uint256) private burnedCounterCount; // Mapping of user address to counter of nft from the opponent color burned
-	mapping(uint256 => bool) public hasClaimedGeneral;
+	mapping(uint256 => uint256) public unclaimedRewards;
+	mapping(address => uint8) public userColor;
+	mapping(address => uint256) private burnedCount;
+	mapping(address => uint256) private burnedCounterCount;
 	mapping(address => bool) public hasClaimedFreeMint;
 	mapping(uint256 => uint256) public nftPriceForSale;
 
-	constructor(address _baseRegistrar, address _vrfCoordinator, address _link) ERC721("Number Runner Club", "NRC") {
+	constructor() ERC721("Number Runner Club", "NRC") {
 		pieceDetails[0] = PieceDetails(2, 0, 0, 0, 2, 0, 0, 3, 0, 0, false);
 		pieceDetails[1] = PieceDetails(10, 0, 0, 0, 1, 15, 2, 3, 15, 15, false);
 		pieceDetails[2] = PieceDetails(50, 0, 0, 0, 1, 15, 12, 4, 15, 15, true);
@@ -220,7 +183,6 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		for (uint8 i = 0; i < 6; i++) {
 			shareTypeAccumulator[i].push(shareTypeAccumulator[i][epoch - 1]);
 		}
-		// Emit shares event
 		uint256[6] memory currentShares;
 		for (uint8 i = 0; i < 6; i++) {
 			currentShares[i] = shareTypeAccumulator[i][epoch];
@@ -228,46 +190,45 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		emit globalSharesUpdated(currentShares);
 
 		spawnKings();
-		auctionEndTime = block.timestamp + auctionDuration;
 
-		kingAuction = new KingAuction(auctionEndTime, auctionDuration, minPrice, _vrfCoordinator, _link);
+		kingAuction = new KingAuction();
 	}
 
 	modifier saleIsActive() {
-		require(currentSupply + MAX_NFT_SUPPLY - totalMinted > 999, "Collection ended");
+		require(currentSupply + MAX_NFT_SUPPLY - totalMinted > 15, "NRC01");
 		_;
 	}
 
 	modifier saleIsNotActive() {
-		require(!(currentSupply + MAX_NFT_SUPPLY - totalMinted > 999), "Collection not ended");
+		require(!(currentSupply + MAX_NFT_SUPPLY - totalMinted > 15), "NRC02");
 		_;
 	}
 
 	function multiMint(uint256 _n) external payable {
 		require(_n > 0);
-		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
+		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "NRC03");
 		if (userColor[msg.sender] == 1) {
-			require(pieceDetails[5].blackMinted + _n < pieceDetails[5].maxSupply / 2, "Max supply for black color reached");
+			require(pieceDetails[5].blackMinted + _n <= pieceDetails[5].maxSupply / 2, "NRC04");
 		} else {
-			require(pieceDetails[5].whiteMinted + _n < pieceDetails[5].maxSupply / 2, "Max supply for white color reached");
+			require(pieceDetails[5].whiteMinted + _n <= pieceDetails[5].maxSupply / 2, "NRC04");
 		}
 		uint256 startId = userColor[msg.sender] == 1 ? 362 + 2 * pieceDetails[5].blackMinted : 363 + 2 * pieceDetails[5].whiteMinted;
 		uint256 mintCount = _n;
 
-		if (!hasClaimedFreeMint[msg.sender] && freeMintCounter < 100) {
+		if (!hasClaimedFreeMint[msg.sender] && freeMintCounter < 30) {
 			hasClaimedFreeMint[msg.sender] = true;
 			freeMintCounter++;
 			mintCount = _n - 1;
 		}
 
 		if (mintCount > 0) {
-			require(msg.value >= 100000000000000000 * mintCount, "User must send at least _n * 0.1 eth for minting a token");
+			require(msg.value >= 50000000000000000 * mintCount, "NRC05");
 		}
 
 		for (uint8 i = 0; i < _n; i++) {
 			uint256 newItemId = startId + 2 * i;
 			_mint(msg.sender, newItemId);
-			_setTokenURI(newItemId, string(abi.encodePacked("ipfs://QmUSL1sxdiSPMUL1s39qpjENXi6kQTmLY1icq9KVjYmc4N/NumberRunner", newItemId.toString(), ".json")));
+			_setTokenURI(newItemId, string(abi.encodePacked("ipfs://QmceFYj1a3xvhuwqb5dNstbzZ5FWNfkWfiDvPkVwvgfQpm/NumberRunner", newItemId.toString(), ".json")));
 			pieceDetails[5].totalMinted++;
 			unclaimedRewards[newItemId] = 0;
 			nftShares[newItemId] = 0;
@@ -277,27 +238,25 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			totalMinted++;
 			currentSupply++;
 			if (i < mintCount) {
-				prizePool += 25000000000000000;
-				// Add the transaction fee to the piece's balance
-				updateShareType(25000000000000000);
+				prizePool += 12500000000000000;
+				updateShareType(12500000000000000);
 			}
 
 			emit NFTMinted(msg.sender, newItemId);
 		}
 
 		if (mintCount > 0) {
-			payable(owner()).transfer(50000000000000000 * mintCount);
+			payable(NRC).transfer(25000000000000000 * mintCount);
 		}
 	}
 
 	function mint(uint8 _pieceType, uint256 _stackedPiece) external payable {
-		require(msg.value >= 100000000000000000, "User must send at least 0.1 eth for minting a token");
-		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before minting");
-		require(pieceDetails[_pieceType].totalMinted < pieceDetails[_pieceType].maxSupply, "Max supply for this piece type reached");
+		require(msg.value >= 50000000000000000, "NRC05");
+		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "NRC03");
 		if (userColor[msg.sender] == 1) {
-			require(pieceDetails[_pieceType].blackMinted < pieceDetails[_pieceType].maxSupply / 2, "Max supply for black color reached");
+			require(pieceDetails[_pieceType].blackMinted <= pieceDetails[_pieceType].maxSupply / 2, "NRC04");
 		} else {
-			require(pieceDetails[_pieceType].whiteMinted < pieceDetails[_pieceType].maxSupply / 2, "Max supply for white color reached");
+			require(pieceDetails[_pieceType].whiteMinted <= pieceDetails[_pieceType].maxSupply / 2, "NRC04");
 		}
 
 		// Set the id of the minting token from the type and color of the piece chosen
@@ -310,23 +269,23 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			for (uint i = 3; i <= pieceDetails[_pieceType].clubRequirement; i++) {
 				string memory name = nameOfTokenId[_stackedPiece];
 				uint256 labelId = uint256(keccak256(abi.encodePacked(name)));
-				require(baseRegistrar.ownerOf(labelId) == msg.sender, "Not owner of ENS node");
+				require(baseRegistrar.ownerOf(labelId) == msg.sender, "NRC06");
 				if (isClub(name, i)) {
 					hasRequiredClubStacked = true;
 					break;
 				}
 			}
-			require(hasRequiredClubStacked, "Doesn't have a required club stacked");
-			require(burnedCount[msg.sender] >= pieceDetails[_pieceType].burnRequirement, "Doesn't burn enough piece");
+			require(hasRequiredClubStacked, "NRC08");
+			require(burnedCount[msg.sender] >= pieceDetails[_pieceType].burnRequirement);
 			burnedCount[msg.sender] -= pieceDetails[_pieceType].burnRequirement;
 			if (pieceDetails[_pieceType].opponentColorBurnRequirement > 0) {
-				require(burnedCounterCount[msg.sender] >= pieceDetails[_pieceType].opponentColorBurnRequirement, "Doesn't burn enough opponent piece");
+				require(burnedCounterCount[msg.sender] >= pieceDetails[_pieceType].opponentColorBurnRequirement);
 				burnedCounterCount[msg.sender] -= pieceDetails[_pieceType].opponentColorBurnRequirement;
 			}
 		}
 
 		_mint(msg.sender, newItemId);
-		_setTokenURI(newItemId, string(abi.encodePacked("ipfs://QmUSL1sxdiSPMUL1s39qpjENXi6kQTmLY1icq9KVjYmc4N/NumberRunner", newItemId.toString(), ".json")));
+		_setTokenURI(newItemId, string(abi.encodePacked("ipfs://QmceFYj1a3xvhuwqb5dNstbzZ5FWNfkWfiDvPkVwvgfQpm/NumberRunner", newItemId.toString(), ".json")));
 		unclaimedRewards[newItemId] = 0;
 		nftShares[newItemId] = 0;
 		_unstakeTimestamps[newItemId] = block.timestamp;
@@ -335,28 +294,22 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		userColor[msg.sender] == 1 ? pieceDetails[_pieceType].blackMinted++ : pieceDetails[_pieceType].whiteMinted++;
 		totalMinted++;
 		currentSupply++;
-		prizePool += 25000000000000000;
-
-		// If there are no pawn stacked, send the fees to prizepool
-		if (typeStacked[5] == 0) {
-			uint256 pawnShare = (25000000000000000 * pieceDetails[5].percentage) / 10;
-			prizePool += pawnShare;
-		}
+		prizePool += 12500000000000000;
 
 		// Add the transaction fee to the piece's balance
-		updateShareType(25000000000000000);
+		updateShareType(12500000000000000);
 
 		emit NFTMinted(msg.sender, newItemId);
 
-		payable(owner()).transfer(50000000000000000);
+		payable(NRC).transfer(25000000000000000);
 	}
 
 	function burn(uint256 tokenId) external saleIsActive {
-		require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: burn caller is not owner nor approved");
-		require(!isForSale(tokenId), "This NFT is already on sale");
-		require(bytes(nameOfTokenId[tokenId]).length == 0, "Cannot burn a stacked token");
+		require(ownerOf(tokenId) == msg.sender, "NRC07");
+		require(!isForSale(tokenId));
+		require(bytes(nameOfTokenId[tokenId]).length == 0);
 		uint8 _pieceType = getPieceType(tokenId);
-		require(_pieceType != 0, "Cannot burn the King");
+		require(_pieceType != 0, "NRC11");
 		updateUnclaimedRewards(_pieceType, tokenId);
 		uint256 totalReward = unclaimedRewards[tokenId];
 		// Reset reward to 0
@@ -365,12 +318,6 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		uint256 taxAmount = (totalReward * pieceDetails[_pieceType].burnTax) / 100;
 		uint256 holdersTax = taxAmount / 2;
 		prizePool += taxAmount / 2;
-
-		// If there are no pawn stacked, send the fees to prizepool
-		if (typeStacked[5] == 0) {
-			uint256 pawnShare = (holdersTax * pieceDetails[5].percentage) / 10;
-			prizePool += pawnShare;
-		}
 
 		updateShareType(holdersTax);
 		nameOfTokenId[tokenId] = "";
@@ -384,36 +331,36 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		nftShares[tokenId] = 0;
 		emit nftSharesUpdated(tokenId, 0);
 		if (totalReward > 0) {
-			require(address(this).balance >= totalReward - taxAmount, "Not enough balance in contract to send rewards");
+			require(address(this).balance >= totalReward - taxAmount);
 			payable(msg.sender).transfer(totalReward - taxAmount);
 		}
 		emit NFTBurned(msg.sender, tokenId);
 	}
 
 	function multiKill(uint256[] calldata tokensId) external payable saleIsActive {
-		require(tokensId.length > 0, "TokensId array is empty");
-		require(msg.sender != address(0), "Buyer is zero address");
-		// require(totalMinted == MAX_NFT_SUPPLY, "All NFT must be minted for access this feature");
+		require(tokensId.length > 0);
+		require(msg.sender != address(0));
+		require(totalMinted == MAX_NFT_SUPPLY, "All NFT must be minted for access this feature");
 		uint256 totalPrice = 0;
 		uint256 killFee = 0;
 		uint256 rewards = 0;
 		for (uint i = 0; i < tokensId.length; i++) {
-			require(!isColorValid(tokensId[i]), "User cannot kill same team color NFT");
+			require(!isColorValid(tokensId[i]));
 			rewards = unclaimedRewards[tokensId[i]] + nftShares[tokensId[i]];
 
 			if (bytes(nameOfTokenId[tokensId[i]]).length != 0) {
-				if (expiration[tokensId[i]] == 0) {
-					killFee = 300000000000000000 + (rewards * 10) / 100;
+				if (isClub(nameOfTokenId[tokensId[i]], 5)) {
+					killFee = 150000000000000000 + (rewards * 10) / 100;
 				} else {
 					require(block.timestamp > expiration[tokensId[i]]);
 					killFee = 0;
 				}
 			} else {
-				// require(block.timestamp >= _unstakeTimestamps[tokensId[i]] + ONE_WEEK, "Cannot burn: One week waiting period is not over");
+				require(block.timestamp >= _unstakeTimestamps[tokensId[i]] + ONE_WEEK, "Cannot burn: One week waiting period is not over");
 				if (isForSale(tokensId[i])) {
-					killFee = 200000000000000000 + (rewards * 10) / 100;
-				} else {
 					killFee = 100000000000000000 + (rewards * 10) / 100;
+				} else {
+					killFee = 50000000000000000 + (rewards * 10) / 100;
 				}
 			}
 			_setNftPrice(tokensId[i], 0);
@@ -422,35 +369,33 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			totalPrice += killFee;
 		}
 
-		require(msg.value >= totalPrice, "Insufficient amount sent");
+		require(msg.value >= totalPrice);
 
 		for (uint i = 0; i < tokensId.length; i++) {
 			killNFT(tokensId[i]);
 		}
 	}
 
-	function killNFT(uint256 tokenId) private saleIsActive {
+	function killNFT(uint256 tokenId) private {
 		uint8 _pieceType = getPieceType(tokenId);
-		require(_pieceType != 0, "Cannot burn the King");
+		require(_pieceType != 0, "NRC11");
 		uint256 killFee = 0;
 		uint256 rewards = unclaimedRewards[tokenId] + nftShares[tokenId];
 
 		if (bytes(nameOfTokenId[tokenId]).length != 0) {
-			if (expiration[tokenId] == 0) {
-				killFee = 300000000000000000 + (rewards * 10) / 100;
+			if (isClub(nameOfTokenId[tokenId], 5)) {
+				killFee = 150000000000000000 + (rewards * 10) / 100;
 			} else {
 				require(block.timestamp > expiration[tokenId]);
 				killFee = 0;
 			}
 		} else {
 			if (isForSale(tokenId)) {
-				killFee = 200000000000000000 + (rewards * 10) / 100;
-			} else {
 				killFee = 100000000000000000 + (rewards * 10) / 100;
+			} else {
+				killFee = 50000000000000000 + (rewards * 10) / 100;
 			}
 		}
-		_killFeeDebt[msg.sender] += killFee;
-		prizePool += killFee;
 		prizePool += (rewards * 10) / 100;
 
 		_burn(tokenId);
@@ -458,7 +403,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		currentSupply--;
 
 		if (rewards > 0) {
-			require(address(this).balance >= rewards - (rewards * 15) / 100, "Not enough balance in contract to send rewards");
+			require(address(this).balance >= rewards - (rewards * 15) / 100);
 			string memory name = nameOfTokenId[tokenId];
 			if (bytes(name).length != 0) {
 				uint256 labelId = uint256(keccak256(abi.encodePacked(name)));
@@ -476,13 +421,13 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function updateExpiration(uint256 tokenId) external {
 		// Ensure the function caller owns the ENS node
-		require(bytes(nameOfTokenId[tokenId]).length != 0, "Token is not stacked yet");
-		require(ownerOf(tokenId) == address(this), "NFT not staked");
+		require(bytes(nameOfTokenId[tokenId]).length != 0, "NRC09");
+		require(ownerOf(tokenId) == address(this));
 		string memory name = nameOfTokenId[tokenId];
-		require(tokenIdOfName[name] != 0, "ENS not used yet");
+		require(tokenIdOfName[name] != 0);
 		uint256 labelId = uint256(keccak256(abi.encodePacked(name)));
 		// Ensure the function caller owns the ENS node
-		require(baseRegistrar.ownerOf(labelId) == msg.sender, "Not owner of ENS node");
+		require(baseRegistrar.ownerOf(labelId) == msg.sender, "NRC06");
 
 		expiration[tokenId] = getDomainExpirationDate(labelId);
 		emit NFTStacked(tokenId, name, expiration[tokenId]);
@@ -490,15 +435,14 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function stack(string memory label, uint256 tokenId) external {
 		uint256 labelId = uint256(keccak256(abi.encodePacked(label)));
-		require(!isForSale(tokenId), "This NFT is already on sale");
-		require(bytes(nameOfTokenId[tokenId]).length == 0, "Token is already stacked");
-		require(tokenIdOfName[label] == 0, "ENS name is already used");
-		require(baseRegistrar.ownerOf(labelId) == msg.sender, "Not owner of ENS name");
+		require(!isForSale(tokenId));
+		require(bytes(nameOfTokenId[tokenId]).length == 0);
+		require(tokenIdOfName[label] == 0);
+		require(baseRegistrar.ownerOf(labelId) == msg.sender, "NRC06");
 
-		// Ensure the function caller owns the NFT
-		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
+		require(ownerOf(tokenId) == msg.sender, "NRC07");
 
-		require(isColorValid(tokenId), "User cannot stack this color");
+		require(isColorValid(tokenId));
 		uint8 _pieceType = getPieceType(tokenId);
 		bool hasValidClub = false;
 		for (uint i = 3; i <= pieceDetails[_pieceType].clubRequirement; i++) {
@@ -521,7 +465,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 				}
 			}
 		}
-		require(hasValidClub, "Doesn't have a valid club name");
+		require(hasValidClub, "NRC08");
 		typeStacked[_pieceType] += 1;
 		nftShares[tokenId] = shareTypeAccumulator[_pieceType][epoch];
 		expiration[tokenId] = getDomainExpirationDate(labelId);
@@ -534,9 +478,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			}
 		}
 
-		// Transfer the NFT to this contract
 		transferFrom(msg.sender, address(this), tokenId);
-		// Set the token ID for the ENS node
 		nameOfTokenId[tokenId] = label;
 		tokenIdOfName[label] = tokenId;
 		emit NFTStacked(tokenId, label, expiration[tokenId]);
@@ -544,14 +486,14 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function unstack(uint256 tokenId) external {
 		// Ensure the function caller owns the ENS node
-		require(bytes(nameOfTokenId[tokenId]).length != 0, "Token is not stacked yet");
+		require(bytes(nameOfTokenId[tokenId]).length != 0, "NRC09");
 		// Ensure the NFT is managed by this contract, doublon?
 		require(ownerOf(tokenId) == address(this), "NFT not staked");
 		uint8 _pieceType = getPieceType(tokenId);
 		string memory name = nameOfTokenId[tokenId];
-		require(tokenIdOfName[name] != 0, "ENS not used yet");
+		// require(tokenIdOfName[name] != 0, "ENS not used yet");
 		uint256 labelId = uint256(keccak256(abi.encodePacked(name)));
-		require(baseRegistrar.ownerOf(labelId) == msg.sender, "Not owner of ENS node");
+		require(baseRegistrar.ownerOf(labelId) == msg.sender, "NRC06");
 		typeStacked[_pieceType] -= 1;
 
 		if (typeStacked[_pieceType] == 0) {
@@ -577,7 +519,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function listNFT(uint256 tokenId, uint256 price) external saleIsActive {
 		require(!isForSale(tokenId));
-		require(_isApprovedOrOwner(msg.sender, tokenId), "ERC721: transfer caller is not owner nor approved");
+		require(_isApprovedOrOwner(msg.sender, tokenId));
 		require(price > 0);
 		approve(address(this), tokenId);
 		_setNftPrice(tokenId, price);
@@ -585,8 +527,8 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	function unlistNFT(uint256 tokenId) external saleIsActive {
-		require(msg.sender == ownerOf(tokenId), "Not owner of the NFT");
-		require(isForSale(tokenId), "NFT is not for sale");
+		require(msg.sender == ownerOf(tokenId), "NRC07");
+		require(isForSale(tokenId));
 		uint256 price = getNftPrice(tokenId);
 		require(price > 0);
 		_setNftPrice(tokenId, 0);
@@ -594,17 +536,17 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 	}
 
 	function multiBuy(uint256[] calldata tokensId) external payable saleIsActive {
-		require(tokensId.length > 0, "TokensId array is empty");
-		require(msg.sender != address(0), "Buyer is zero address");
+		require(tokensId.length > 0);
+		require(msg.sender != address(0));
 		uint256 totalPrice = 0;
 		for (uint i = 0; i < tokensId.length; i++) {
-			require(isForSale(tokensId[i]), "NFT is not for sale");
+			require(isForSale(tokensId[i]));
 			uint256 price = getNftPrice(tokensId[i]);
 			require(price > 0);
 			totalPrice += price;
 		}
 
-		require(msg.value >= totalPrice, "Insufficient amount sent");
+		require(msg.value >= totalPrice);
 
 		for (uint i = 0; i < tokensId.length; i++) {
 			buyNFT(tokensId[i], getNftPrice(tokensId[i]));
@@ -614,14 +556,14 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function buyNFT(uint256 tokenId, uint256 price) private saleIsActive {
 		address seller = ownerOf(tokenId);
-		require(msg.sender != seller, "Cannot buy your own nft");
+		require(msg.sender != seller);
 		uint8 _pieceType = getPieceType(tokenId);
 		updateUnclaimedRewards(_pieceType, tokenId);
 		uint256 totalReward = unclaimedRewards[tokenId];
 		// Reset reward to 0
 		unclaimedRewards[tokenId] = 0;
 		emit UpdateUnclaimedRewards(tokenId, 0);
-		uint256 taxAmount = (totalReward * 20) / 100;
+		uint256 taxAmount = (totalReward * 20) / 100 + (price * 20) / 100;
 
 		prizePool += taxAmount / 2;
 		uint256 holdersTax = taxAmount / 2;
@@ -633,14 +575,14 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		bool success;
 		if (totalReward > 0) {
 			// Ensure the contract has enough balance to pay the seller
-			require(address(this).balance >= totalReward - taxAmount + price, "Not enough balance in contract to pay seller");
+			require(address(this).balance >= totalReward - taxAmount + ((price * 80) / 100));
 			(success, ) = payable(seller).call{ value: totalReward - taxAmount + price }("");
 		} else {
-			require(address(this).balance >= price, "Not enough balance in contract to pay price seller");
-			(success, ) = payable(seller).call{ value: price }("");
+			require(address(this).balance >= price);
+			(success, ) = payable(seller).call{ value: ((price * 80) / 100) }("");
 		}
 
-		require(success, "Failed to transfer ether to seller");
+		require(success);
 		// Transfer nft
 		ERC721(address(this)).safeTransferFrom(seller, msg.sender, tokenId);
 		emit NFTPurchased(msg.sender, seller, tokenId, price);
@@ -690,7 +632,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 			return 3;
 		} else if (nftId >= 162 && nftId < 362) {
 			return 4;
-		} else if (nftId >= 362 && nftId < 10000) {
+		} else if (nftId >= 362 && nftId < 9999) {
 			return 5;
 		} else {
 			return 10;
@@ -699,16 +641,16 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	// Let user choose the white or black color
 	function chooseColor(uint8 _color) external {
-		require(_color == 1 || _color == 2, "Invalid color");
-		require(userColor[msg.sender] == 0, "Color already chosen");
+		require(_color == 1 || _color == 2);
+		require(userColor[msg.sender] == 0);
 		userColor[msg.sender] = _color;
 		emit ColorChoosed(_color, msg.sender);
 	}
 
 	function revealKingHand(uint256 tokenId) external payable {
-		require(msg.value >= 10000000000000000); // reveal price fixed at 0.2 eth
-		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
-		require(getPieceType(tokenId) == 5, "Token must be a Pawn");
+		require(msg.value >= 10000000000000000); // reveal price fixed at 0.01 eth
+		require(ownerOf(tokenId) == msg.sender, "NRC07");
+		require(getPieceType(tokenId) == 5);
 		prizePool += msg.value;
 		bool isKingHand = kingAuction.revealKingHand(tokenId);
 		emit KingHandRevealed(isKingHand);
@@ -716,10 +658,10 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 	function buyKing(string memory label) external payable {
 		uint256 labelId = uint256(keccak256(abi.encodePacked(label)));
-		require(baseRegistrar.ownerOf(labelId) == msg.sender, "Not owner of ENS node");
-		require(isClub(label, 3), "Only 999 Club can buy King");
-		require(tokenIdOfName[label] == 0, "ENS name is already used");
-		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2, "User must choose a color before buying king");
+		require(baseRegistrar.ownerOf(labelId) == msg.sender, "NRC06");
+		require(isClub(label, 3), "NRC08");
+		require(tokenIdOfName[label] == 0);
+		require(userColor[msg.sender] == 1 || userColor[msg.sender] == 2);
 
 		bool success = kingAuction.buyKing(userColor[msg.sender], msg.value);
 		if (success) {
@@ -740,23 +682,17 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		return baseRegistrar.nameExpires(labelId) + 90 days;
 	}
 
-	// faire en sorte que la king hand puisse être claim une unique fois sa cagnotte
-	function claimKingHand(uint256 tokenId) external {
-		require(ownerOf(tokenId) == msg.sender, "Not owner of NFT");
-		uint256 pieceShare = kingAuction.claimKingHand(tokenId);
-		payable(msg.sender).transfer(pieceShare);
-	}
-
 	function claimPrizePool(uint256 tokenId) external saleIsNotActive {
-		require(isClub(nameOfTokenId[tokenId], 3) || (isClub(nameOfTokenId[tokenId], 4)), "Only 999Club and 10kClub can claim Prize");
+		require(isClub(nameOfTokenId[tokenId], 3) || (isClub(nameOfTokenId[tokenId], 4)), "NRC08");
 		string memory name = nameOfTokenId[tokenId];
-		require(tokenIdOfName[name] != 0, "ENS not used yet");
+		require(bytes(nameOfTokenId[tokenId]).length != 0, "NRC09");
 		uint256 labelId = uint256(keccak256(abi.encodePacked(name)));
-		require(baseRegistrar.ownerOf(labelId) == msg.sender, "Not owner of ENS node");
-		require(hasClaimedGeneral[tokenId] == false, "Prize already claimed on this nft");
-		prizePool -= (prizePool / 999);
+		require(baseRegistrar.ownerOf(labelId) == msg.sender, "NRC06");
+		if (kingAuction.revealKingHand(tokenId)) {
+			uint256 pieceShare = kingAuction.claimKingHand();
+			payable(msg.sender).transfer(pieceShare);
+		}
 		payable(msg.sender).transfer(prizePool / 999);
-		hasClaimedGeneral[tokenId] = true;
 		uint8 _pieceType = getPieceType(tokenId);
 		updateUnclaimedRewards(_pieceType, tokenId);
 		uint256 totalReward = unclaimedRewards[tokenId];
@@ -766,23 +702,18 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		nftShares[tokenId] = 0;
 		emit nftSharesUpdated(tokenId, 0);
 		if (totalReward > 0) {
-			require(address(this).balance >= totalReward, "Not enough balance in contract to send rewards");
+			require(address(this).balance >= totalReward, "NRC10");
 			payable(msg.sender).transfer(totalReward);
 		}
 
-		uint256 killFee = _killFeeDebt[msg.sender];
-		if (killFee > 0) {
-			_killFeeDebt[msg.sender] = 0;
-			prizePool -= killFee;
-			require(address(this).balance >= killFee, "Not enough balance in contract to send rewards");
-			payable(msg.sender).transfer(killFee);
-		}
+		_burn(tokenId);
+		emit NFTBurned(msg.sender, tokenId);
 	}
 
 	function spawnKings() private {
 		// Black king
 		_mint(address(this), 0);
-		_setTokenURI(0, "");
+		_setTokenURI(0, "ipfs://QmceFYj1a3xvhuwqb5dNstbzZ5FWNfkWfiDvPkVwvgfQpm/NumberRunner0.json");
 		pieceDetails[0].totalMinted++;
 		pieceDetails[0].blackMinted++;
 		totalMinted++;
@@ -795,7 +726,7 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 
 		// White king
 		_mint(address(this), 1);
-		_setTokenURI(1, "");
+		_setTokenURI(1, "ipfs://QmceFYj1a3xvhuwqb5dNstbzZ5FWNfkWfiDvPkVwvgfQpm/NumberRunner1.json");
 		pieceDetails[0].totalMinted++;
 		pieceDetails[0].whiteMinted++;
 		totalMinted++;
@@ -892,30 +823,21 @@ contract NumberRunnerClub is ERC721URIStorage, Ownable, ReentrancyGuard {
 		return prizePool;
 	}
 
-	function transferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public override(ERC721, IERC721) {
-        if (isForSale(tokenId)) {
-            _setNftPrice(tokenId, 0);
-            emit NFTUnlisted(from, tokenId, getNftPrice(tokenId));
-        }
+	function transferFrom(address from, address to, uint256 tokenId) public override(ERC721, IERC721) {
+		if (isForSale(tokenId)) {
+			_setNftPrice(tokenId, 0);
+			emit NFTUnlisted(from, tokenId, getNftPrice(tokenId));
+		}
 
-        ERC721.transferFrom(from, to, tokenId);
-    }
+		ERC721.transferFrom(from, to, tokenId);
+	}
 
-	function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId,
-        bytes memory _data
-    ) public override(ERC721, IERC721) {
-        if (isForSale(tokenId)) {
-            _setNftPrice(tokenId, 0);
-            emit NFTUnlisted(from, tokenId, getNftPrice(tokenId));
-        }
+	function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory _data) public override(ERC721, IERC721) {
+		if (isForSale(tokenId)) {
+			_setNftPrice(tokenId, 0);
+			emit NFTUnlisted(from, tokenId, getNftPrice(tokenId));
+		}
 
-        ERC721.safeTransferFrom(from, to, tokenId, _data);
-    }
+		ERC721.safeTransferFrom(from, to, tokenId, _data);
+	}
 }
